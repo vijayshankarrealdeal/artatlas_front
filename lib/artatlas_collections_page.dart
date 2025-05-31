@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:hack_front/models/artwork_model.dart';
+import 'package:hack_front/responsive_util.dart';
 
 class ArtatlasCollectionsPage extends StatefulWidget {
-  const ArtatlasCollectionsPage({super.key});
+  final Function(int)? onNavigateToTab;
+  const ArtatlasCollectionsPage({super.key, this.onNavigateToTab});
 
   @override
   State<ArtatlasCollectionsPage> createState() =>
@@ -10,18 +12,14 @@ class ArtatlasCollectionsPage extends StatefulWidget {
 }
 
 class _ArtatlasCollectionsPageState extends State<ArtatlasCollectionsPage> {
-  // String _activeSubNav = 'Artworks';
   bool _filtersVisible = false;
 
-  // Filter states
   String? _selectedSort = 'Sort: By Relevance';
   String? _selectedDate = 'Date: 1800 - 1980';
   String? _selectedClassification;
   String? _selectedArtist;
   String? _selectedStyle;
 
-  // Active filter chips
-  // Store as a list of tuples or small classes to manage label and an identifier for removal
   List<Map<String, String?>> _activeFilterChips = [];
 
   final List<String> _sortOptions = [
@@ -56,58 +54,61 @@ class _ArtatlasCollectionsPageState extends State<ArtatlasCollectionsPage> {
   @override
   void initState() {
     super.initState();
-    _updateActiveFilterChips(); // Initialize with default filters
+    _selectedClassification = _classificationOptions.first;
+    _selectedArtist = _artistOptions.first;
+    _selectedStyle = _styleOptions.first;
+    _updateActiveFilterChips();
+  }
+
+  void _toggleFiltersVisibility() {
+    setState(() {
+      _filtersVisible = !_filtersVisible;
+    });
   }
 
   void _updateActiveFilterChips() {
     _activeFilterChips.clear();
-    if (_selectedSort != null && _selectedSort != _sortOptions.first)
+    if (_selectedSort == 'Sort: By Relevance') {
       _activeFilterChips.add({'type': 'sort', 'label': _selectedSort});
-    if (_selectedDate != null && _selectedDate != _dateOptions.first)
+    }
+    if (_selectedDate == 'Date: 1800 - 1980') {
       _activeFilterChips.add({'type': 'date', 'label': _selectedDate});
+    }
     if (_selectedClassification != null &&
-        _selectedClassification != _classificationOptions.first)
+        _selectedClassification != _classificationOptions.first) {
       _activeFilterChips.add({
         'type': 'classification',
         'label': _selectedClassification,
       });
-    if (_selectedArtist != null && _selectedArtist != _artistOptions.first)
+    }
+    if (_selectedArtist != null && _selectedArtist != _artistOptions.first) {
       _activeFilterChips.add({'type': 'artist', 'label': _selectedArtist});
-    if (_selectedStyle != null && _selectedStyle != _styleOptions.first)
+    }
+    if (_selectedStyle != null && _selectedStyle != _styleOptions.first) {
       _activeFilterChips.add({'type': 'style', 'label': _selectedStyle});
-
-    // The problem shows default filters as chips, let's adjust:
-    // The image shows "Date: 1800-1980" and "Sort: By Relevance" as active chips by default.
-    // So, we'll manually add them if they are the initial values.
-    _activeFilterChips.clear(); // Clear previous logic
-    if (_selectedSort == 'Sort: By Relevance')
-      _activeFilterChips.add({'type': 'sort', 'label': _selectedSort});
-    if (_selectedDate == 'Date: 1800 - 1980')
-      _activeFilterChips.add({'type': 'date', 'label': _selectedDate});
-    // Add others if they are selected and not the placeholder
-    if (_selectedClassification != null &&
-        _selectedClassification != _classificationOptions.first)
-      _activeFilterChips.add({
-        'type': 'classification',
-        'label': _selectedClassification,
-      });
-    if (_selectedArtist != null && _selectedArtist != _artistOptions.first)
-      _activeFilterChips.add({'type': 'artist', 'label': _selectedArtist});
-    if (_selectedStyle != null && _selectedStyle != _styleOptions.first)
-      _activeFilterChips.add({'type': 'style', 'label': _selectedStyle});
-
-    // This logic ensures initial filters from image are shown as chips
+    }
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   void _removeFilterChip(String type, String? label) {
     setState(() {
-      if (type == 'sort')
-        _selectedSort = _sortOptions.first; // Reset to default
-      if (type == 'date') _selectedDate = _dateOptions.first;
-      if (type == 'classification')
-        _selectedClassification = null; // Or _classificationOptions.first
-      if (type == 'artist') _selectedArtist = null;
-      if (type == 'style') _selectedStyle = null;
+      if (type == 'sort') {
+        _selectedSort = _sortOptions.first;
+      }
+      if (type == 'date') {
+        _selectedDate = _dateOptions.first;
+      }
+      if (type == 'classification') {
+        _selectedClassification = _classificationOptions.first;
+      }
+      if (type == 'artist') {
+        _selectedArtist = _artistOptions.first;
+      }
+      if (type == 'style') {
+        _selectedStyle = _styleOptions.first;
+      }
       _updateActiveFilterChips();
     });
   }
@@ -116,33 +117,53 @@ class _ArtatlasCollectionsPageState extends State<ArtatlasCollectionsPage> {
     setState(() {
       _selectedSort = _sortOptions.first;
       _selectedDate = _dateOptions.first;
-      _selectedClassification = null;
-      _selectedArtist = null;
-      _selectedStyle = null;
+      _selectedClassification = _classificationOptions.first;
+      _selectedArtist = _artistOptions.first;
+      _selectedStyle = _styleOptions.first;
       _updateActiveFilterChips();
     });
   }
 
-  Widget _buildHeader(String activePage) {
-    // This header is slightly different from the previous one
-    // "Collection" is highlighted
-    Widget navLink(String text, bool isActivePageOverride) {
-      bool isActuallyActive = text == activePage || isActivePageOverride;
+  Widget _buildDesktopHeader(BuildContext context) {
+    final navFontSize = ResponsiveUtil.getHeaderNavFontSize(context);
+    final headerPadding = ResponsiveUtil.getBodyPadding(context);
+
+    void handleDesktopHeaderLinkTap(String routeName) {
+      int targetIndex = -1;
+      if (routeName == 'Home') targetIndex = 0;
+      if (routeName == 'Galleries') targetIndex = 1;
+
+      if (targetIndex != -1 && widget.onNavigateToTab != null) {
+        widget.onNavigateToTab!(targetIndex);
+      } else {
+        print("Desktop header link tapped: $routeName (no action or self)");
+      }
+    }
+
+    Widget navLink(String text) {
+      bool isThisPageLink = text == "Collection";
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 15.0),
-        child: Text(
-          text,
-          style: TextStyle(
-            fontSize: 16,
-            color: isActuallyActive ? Colors.blueAccent : Colors.black87,
-            fontWeight: FontWeight.w300,
+        child: GestureDetector(
+          onTap: () => handleDesktopHeaderLinkTap(text),
+          child: Text(
+            text,
+            style: TextStyle(
+              fontSize: navFontSize,
+              color: isThisPageLink
+                  ? Colors.blueAccent
+                  : Theme.of(context).brightness == Brightness.dark
+                  ? Colors.white38
+                  : Colors.black87,
+              fontWeight: isThisPageLink ? FontWeight.w400 : FontWeight.w300,
+            ),
           ),
         ),
       );
     }
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 40.0, vertical: 30.0),
+      padding: EdgeInsets.symmetric(horizontal: headerPadding, vertical: 30.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -157,7 +178,6 @@ class _ArtatlasCollectionsPageState extends State<ArtatlasCollectionsPage> {
                   fontSize: 26,
                   fontWeight: FontWeight.w100,
                   letterSpacing: 1.5,
-                  color: Colors.black,
                 ),
               ),
               Text(
@@ -166,20 +186,15 @@ class _ArtatlasCollectionsPageState extends State<ArtatlasCollectionsPage> {
                   fontSize: 26,
                   fontWeight: FontWeight.w100,
                   letterSpacing: 1.5,
-                  color: Colors.black,
                 ),
               ),
             ],
           ),
           Row(
             children: [
-              navLink('Top Picks', false),
-
-              navLink(
-                'Galleries',
-                false,
-              ), // Hardcode Collection as active for this page
-              navLink('Collection', true),
+              navLink('Home'),
+              navLink('Galleries'),
+              navLink('Collection'),
               const SizedBox(width: 20),
             ],
           ),
@@ -188,166 +203,115 @@ class _ArtatlasCollectionsPageState extends State<ArtatlasCollectionsPage> {
     );
   }
 
-  // Widget _buildSubNavigation() {
-  //   Widget tab(String title) {
-  //     bool isActive = _activeSubNav == title;
-  //     return GestureDetector(
-  //       onTap: () => setState(() => _activeSubNav = title),
-  //       child: Container(
-  //         padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
-  //         decoration: BoxDecoration(
-  //           border: Border(
-  //             bottom: BorderSide(
-  //               color: isActive ? Colors.black : Colors.transparent,
-  //               width: 2.0,
-  //             ),
-  //           ),
-  //         ),
-  //         child: Text(
-  //           title,
-  //           style: TextStyle(
-  //             fontSize: 16,
-  //             fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-  //             color: Colors.black87,
-  //           ),
-  //         ),
-  //       ),
-  //     );
-  //   }
-
-  //   return Padding(
-  //     padding: const EdgeInsets.only(bottom: 20.0),
-  //     child: Row(
-  //       children: [tab('Artworks'), tab('Writings'), tab('Resources')],
-  //     ),
-  //   );
-  // }
-
-  Widget _buildSearchAndFilterToggle() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10.0),
-      child: Row(
-        children: [
-          const Icon(Icons.search, color: Colors.grey),
-          const SizedBox(width: 8),
-          const Expanded(
-            child: TextField(
-              decoration: InputDecoration.collapsed(
-                hintText: 'Search by painting, artists or keyword',
-                hintStyle: TextStyle(color: Colors.grey),
-              ),
-            ),
-          ),
-          const Spacer(),
-          TextButton.icon(
-            onPressed: () => setState(() => _filtersVisible = !_filtersVisible),
-            icon: Icon(
-              _filtersVisible
-                  ? Icons.filter_list_off_outlined
-                  : Icons.filter_list,
-              color: Colors.black54,
-            ),
-            label: Text(
-              _filtersVisible ? 'Hide Filters' : 'Show Filters',
-              style: const TextStyle(color: Colors.black54),
-            ),
-            style: TextButton.styleFrom(
-              padding: EdgeInsets.zero,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFilterDropdowns() {
+  Widget _buildFilterDropdowns(BuildContext context) {
+    final isMobile = ResponsiveUtil.isMobile(context);
     Widget filterDropdown({
       required String? value,
       required List<String> items,
-      required String hint,
       required ValueChanged<String?> onChanged,
     }) {
-      return Expanded(
-        child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 6.0),
-          padding: const EdgeInsets.symmetric(horizontal: 12.0),
-          decoration: BoxDecoration(
-            border: Border.all(color: Colors.grey.shade400),
-            borderRadius: BorderRadius.circular(4.0),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              isExpanded: true,
-              value:
-                  value ??
-                  items
-                      .first, // Ensure a value is always selected, use hint as default
-              icon: const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
-              hint: Text(hint, style: const TextStyle(color: Colors.grey)),
-              items: items.map<DropdownMenuItem<String>>((String val) {
-                return DropdownMenuItem<String>(
-                  value: val,
-                  child: Text(val, style: const TextStyle(fontSize: 14)),
-                );
-              }).toList(),
-              onChanged: (newValue) {
-                onChanged(newValue);
-                _updateActiveFilterChips();
-                setState(() {});
-              },
-              style: const TextStyle(color: Colors.black87, fontSize: 14),
-            ),
+      Widget dropdown = Container(
+        margin: EdgeInsets.symmetric(
+          horizontal: isMobile ? 0 : 6.0,
+          vertical: isMobile ? 4.0 : 0,
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 12.0),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade400),
+          borderRadius: BorderRadius.circular(4.0),
+        ),
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<String>(
+            isExpanded: true,
+            value: value,
+            items: items
+                .map<DropdownMenuItem<String>>(
+                  (String val) => DropdownMenuItem<String>(
+                    value: val,
+                    child: Text(
+                      val,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: val == items.first
+                            ? Colors.grey.shade600
+                            : Colors.black87,
+                      ),
+                    ),
+                  ),
+                )
+                .toList(),
+            onChanged: (newValue) {
+              onChanged(newValue);
+              _updateActiveFilterChips();
+            },
+            style: const TextStyle(fontSize: 14),
+            icon: const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
           ),
         ),
       );
+      return isMobile ? dropdown : Expanded(child: dropdown);
     }
 
+    List<Widget> dropdownWidgets = [
+      filterDropdown(
+        value: _selectedSort,
+        items: _sortOptions,
+        onChanged: (val) => setState(() => _selectedSort = val),
+      ),
+      filterDropdown(
+        value: _selectedDate,
+        items: _dateOptions,
+        onChanged: (val) => setState(() => _selectedDate = val),
+      ),
+      filterDropdown(
+        value: _selectedClassification,
+        items: _classificationOptions,
+        onChanged: (val) => setState(() => _selectedClassification = val),
+      ),
+      filterDropdown(
+        value: _selectedArtist,
+        items: _artistOptions,
+        onChanged: (val) => setState(() => _selectedArtist = val),
+      ),
+      filterDropdown(
+        value: _selectedStyle,
+        items: _styleOptions,
+        onChanged: (val) => setState(() => _selectedStyle = val),
+      ),
+    ];
     return Visibility(
       visible: _filtersVisible,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 15.0),
-        child: Row(
-          children: [
-            filterDropdown(
-              value: _selectedSort,
-              items: _sortOptions,
-              hint: 'Sort By',
-              onChanged: (val) => _selectedSort = val,
-            ),
-            filterDropdown(
-              value: _selectedDate,
-              items: _dateOptions,
-              hint: 'Date',
-              onChanged: (val) => _selectedDate = val,
-            ),
-            filterDropdown(
-              value: _selectedClassification,
-              items: _classificationOptions,
-              hint: 'Classifications',
-              onChanged: (val) => _selectedClassification = val,
-            ),
-            filterDropdown(
-              value: _selectedArtist,
-              items: _artistOptions,
-              hint: 'Artists',
-              onChanged: (val) => _selectedArtist = val,
-            ),
-            filterDropdown(
-              value: _selectedStyle,
-              items: _styleOptions,
-              hint: 'Styles',
-              onChanged: (val) => _selectedStyle = val,
-            ),
-          ],
-        ),
+        child: isMobile
+            ? Column(children: dropdownWidgets)
+            : Row(children: dropdownWidgets),
       ),
     );
   }
 
-  Widget _buildActiveFilters() {
-    if (_activeFilterChips.isEmpty) return const SizedBox.shrink();
-
+  Widget _buildActiveFilters(BuildContext context) {
+    if (_activeFilterChips.isEmpty && !_filtersVisible) {
+      return const SizedBox.shrink();
+    }
+    if (_activeFilterChips.isEmpty && _filtersVisible) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 0, bottom: 15.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            if (_filtersVisible)
+              TextButton(
+                onPressed: _clearAllFilters,
+                child: const Text(
+                  'Clear All',
+                  style: TextStyle(color: Colors.blueAccent, fontSize: 13),
+                ),
+              ),
+          ],
+        ),
+      );
+    }
     return Padding(
       padding: const EdgeInsets.only(top: 0, bottom: 15.0),
       child: Row(
@@ -356,97 +320,112 @@ class _ArtatlasCollectionsPageState extends State<ArtatlasCollectionsPage> {
             child: Wrap(
               spacing: 8.0,
               runSpacing: 8.0,
-              children: _activeFilterChips.map((chipData) {
-                return Chip(
-                  label: Text(
-                    chipData['label']!,
-                    style: const TextStyle(fontSize: 13),
-                  ),
-                  onDeleted: () =>
-                      _removeFilterChip(chipData['type']!, chipData['label']),
-                  deleteIcon: const Icon(Icons.close, size: 16),
-                  backgroundColor: Colors.grey.shade200,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8.0,
-                    vertical: 4.0,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(4.0),
-                    side: BorderSide.none,
-                  ),
-                );
-              }).toList(),
+              children: _activeFilterChips
+                  .map(
+                    (chipData) => Chip(
+                      label: Text(
+                        chipData['label']!,
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                      onDeleted: () => _removeFilterChip(
+                        chipData['type']!,
+                        chipData['label'],
+                      ),
+                      deleteIcon: const Icon(Icons.close, size: 14),
+                      backgroundColor: Colors.grey.shade200,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6.0,
+                        vertical: 2.0,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(4.0),
+                        side: BorderSide.none,
+                      ),
+                    ),
+                  )
+                  .toList(),
             ),
           ),
-          TextButton(
-            onPressed: _clearAllFilters,
-            child: const Text(
-              'Clear All',
-              style: TextStyle(color: Colors.blueAccent),
+          if (_activeFilterChips.isNotEmpty)
+            TextButton(
+              onPressed: _clearAllFilters,
+              child: const Text(
+                'Clear All',
+                style: TextStyle(color: Colors.blueAccent, fontSize: 13),
+              ),
             ),
-          ),
         ],
       ),
     );
   }
 
-  Widget _buildArtworkGrid() {
-    // Determine number of columns based on screen width, for simplicity using fixed 4 here
-    const int crossAxisCount = 4;
-    const double childAspectRatio = 0.75; // Adjust as needed (width / height)
-    const double spacing = 20.0;
-
+  Widget _buildArtworkGrid(BuildContext context) {
+    final crossAxisCount = ResponsiveUtil.getCrossAxisCountForCollectionsGrid(
+      context,
+    );
+    final childAspectRatio = ResponsiveUtil.getCollectionsGridAspectRatio(
+      context,
+    );
+    const double spacing = 16.0;
+    final filteredArtworks = sampleArtworks;
     return GridView.builder(
       padding: const EdgeInsets.only(top: 20.0),
-      shrinkWrap:
-          true, // Important if GridView is inside a non-scrollable parent like Column
-      physics:
-          const NeverScrollableScrollPhysics(), // If parent is SingleChildScrollView
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: crossAxisCount,
         crossAxisSpacing: spacing,
         mainAxisSpacing: spacing,
         childAspectRatio: childAspectRatio,
       ),
-      itemCount: sampleArtworks.length,
+      itemCount: filteredArtworks.length,
       itemBuilder: (context, index) {
-        final artwork = sampleArtworks[index];
+        final artwork = filteredArtworks[index];
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
-              child: Image.network(
-                artwork.imageUrl,
-                fit: BoxFit.cover,
-                width: double.infinity,
-                errorBuilder: (context, error, stackTrace) => Container(
-                  color: Colors.grey.shade300,
-                  child: const Center(child: Icon(Icons.broken_image)),
+              child: Container(
+                clipBehavior: Clip.antiAlias,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(4),
                 ),
-                loadingBuilder: (context, child, loadingProgress) {
-                  if (loadingProgress == null) return child;
-                  return Center(
-                    child: CircularProgressIndicator(
-                      value: loadingProgress.expectedTotalBytes != null
-                          ? loadingProgress.cumulativeBytesLoaded /
-                                loadingProgress.expectedTotalBytes!
-                          : null,
-                    ),
-                  );
-                },
+                child: Image.network(
+                  artwork.imageUrl,
+                  fit: BoxFit.cover,
+                  width: double.infinity,
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    color: Colors.grey.shade300,
+                    child: const Center(child: Icon(Icons.broken_image)),
+                  ),
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) {
+                      return child;
+                    }
+                    return Center(
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.0,
+                        value: loadingProgress.expectedTotalBytes != null
+                            ? loadingProgress.cumulativeBytesLoaded /
+                                  loadingProgress.expectedTotalBytes!
+                            : null,
+                      ),
+                    );
+                  },
+                ),
               ),
             ),
             const SizedBox(height: 8),
             Text(
               '${artwork.title} — ${artwork.year}',
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: 4),
             Text(
               artwork.artist,
-              style: const TextStyle(fontSize: 13, color: Colors.black54),
+              style: const TextStyle(fontSize: 12, color: Colors.black54),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -458,41 +437,120 @@ class _ArtatlasCollectionsPageState extends State<ArtatlasCollectionsPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Use a maximum width for the content area on larger screens
-    double contentMaxWidth = MediaQuery.of(context).size.width * 0.95;
+    final isMobile = ResponsiveUtil.isMobile(context);
+    final bodyPadding = ResponsiveUtil.getBodyPadding(context);
+    double contentMaxWidth = ResponsiveUtil.isDesktop(context)
+        ? MediaQuery.of(context).size.width * 0.90
+        : MediaQuery.of(context).size.width;
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: Center(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: contentMaxWidth),
+    Widget searchBar = Padding(
+      padding: EdgeInsets.symmetric(
+        vertical: 10.0,
+        horizontal: isMobile ? 0 : 0,
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.search, color: Colors.grey),
+          const SizedBox(width: 8),
+          const Expanded(
+            child: TextField(
+              decoration: InputDecoration.collapsed(
+                hintText: 'Search by painting, artists or keyword',
+                hintStyle: TextStyle(color: Colors.grey, fontSize: 14),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    Widget pageContent = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (!isMobile) _buildDesktopHeader(context),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: bodyPadding),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildHeader('Galleries'), // Pass active page identifier
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 40.0,
-                    vertical: 10.0,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      //     _buildSubNavigation(),
-                      _buildSearchAndFilterToggle(),
-                      _buildFilterDropdowns(),
-                      _buildActiveFilters(),
-                      const Divider(height: 1, thickness: 1),
-                      _buildArtworkGrid(),
-                      const SizedBox(height: 40), // Some padding at the bottom
-                    ],
+              if (isMobile) const SizedBox(height: 16),
+              searchBar,
+              if (!isMobile)
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    onPressed: _toggleFiltersVisibility,
+                    icon: Icon(
+                      _filtersVisible
+                          ? Icons.filter_list_off_outlined
+                          : Icons.filter_list,
+                      color: Colors.black54,
+                    ),
+                    label: Text(
+                      _filtersVisible ? 'Hide Filters' : 'Show Filters',
+                      style: const TextStyle(
+                        color: Colors.black54,
+                        fontSize: 14,
+                      ),
+                    ),
+                    style: TextButton.styleFrom(
+                      padding: EdgeInsets.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
                   ),
                 ),
-              ),
+              _buildFilterDropdowns(context),
+              _buildActiveFilters(context),
+              const Divider(height: 1, thickness: 1),
+              _buildArtworkGrid(context),
+              const SizedBox(height: 40),
             ],
           ),
         ),
-      ),
+      ],
     );
+
+    if (isMobile) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Collections'),
+          centerTitle: false,
+          actions: [
+            IconButton(
+              icon: Icon(
+                _filtersVisible
+                    ? Icons.filter_list_off_outlined
+                    : Icons.filter_list,
+                color: Colors.black54,
+              ),
+              onPressed: _toggleFiltersVisibility,
+              tooltip: _filtersVisible ? 'Hide Filters' : 'Show Filters',
+            ),
+          ],
+        ),
+        body: SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight:
+                  MediaQuery.of(context).size.height -
+                  (AppBar().preferredSize.height +
+                      MediaQuery.of(context).padding.top +
+                      kBottomNavigationBarHeight),
+              maxWidth: contentMaxWidth,
+            ),
+            child: pageContent,
+          ),
+        ),
+      );
+    } else {
+      return SingleChildScrollView(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: contentMaxWidth),
+            child: pageContent,
+          ),
+        ),
+      );
+    }
   }
 }

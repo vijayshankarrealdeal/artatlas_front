@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart'; // For a more precise arrow if needed
+import 'package:hack_front/responsive_util.dart';
 
 class ArtatlasGalleryPage extends StatefulWidget {
-  const ArtatlasGalleryPage({super.key});
+  final Function(int)? onNavigateToTab;
+  const ArtatlasGalleryPage({super.key, this.onNavigateToTab});
 
   @override
   State<ArtatlasGalleryPage> createState() => _ArtatlasGalleryPageState();
@@ -16,60 +17,42 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage> {
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
     final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = ResponsiveUtil.isMobile(context);
 
-    return Scaffold(
-      backgroundColor: Colors.black, // Fallback color
-      body: Stack(
-        children: [
-          // 1. Background Image
-          Positioned.fill(
-            child: Image.asset(
-              // Replace with your actual image URL or use Image.asset
-              'assets/images/night.png', // Using the provided image
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  color: Colors.grey[800],
-                  child: const Center(child: Text("Error loading image")),
-                );
-              },
-            ),
+    final infoPanelWidth = ResponsiveUtil.getGalleryInfoPanelWidth(context);
+    final appBarHeight = isMobile ? kToolbarHeight : 0;
+    final infoPanelTopPadding = isMobile
+        ? screenHeight * 0.60 - appBarHeight
+        : screenHeight * 0.20;
+
+    final infoPanelSidePadding = isMobile
+        ? (screenWidth - infoPanelWidth) / 2
+        : 30.0;
+
+    Widget galleryContent = Stack(
+      children: [
+        Positioned.fill(
+          child: Image.asset(
+            Theme.of(context).brightness == Brightness.light
+                ? 'assets/images/xx.png'
+                : 'assets/images/night.png',
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) {
+              return Container(
+                color: Colors.grey[800],
+                child: const Center(child: Text("Error loading image")),
+              );
+            },
           ),
-          // Positioned(
-          //   top: 50,
-          //   left: 20,
-          //   child: Container(
-          //     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          //     decoration: BoxDecoration(
-          //       color: Colors.black.withOpacity(0.6),
-          //       borderRadius: BorderRadius.circular(8),
-          //     ),
-          //     child: Row(
-          //       mainAxisSize: MainAxisSize.min,
-          //       children: const [
-          //         Icon(
-          //           Icons.location_on_outlined,
-          //           color: Colors.white,
-          //           size: 18,
-          //         ),
-          //         SizedBox(width: 8),
-          //         Text(
-          //           'Chanlibel Museum, Baku Azerbaijan',
-          //           style: TextStyle(color: Colors.white, fontSize: 13),
-          //         ),
-          //       ],
-          //     ),
-          //   ),
-          // ),
-
-          // Virtual Tour Title
+        ),
+        if (!isMobile)
           Positioned(
-            top: 50, // Adjusted to be below the fake window controls
+            top: 50,
             left: 0,
             right: 0,
             child: Center(
               child: Text(
-                'Galley',
+                'Gallery',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 32,
@@ -86,242 +69,196 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage> {
               ),
             ),
           ),
-
-          // 3. Right Info Panel
-          Positioned(
-            top: screenHeight * 0.25,
-            right: 30,
-            width: screenWidth * 0.35, // Adjust width as needed
-            child: Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.75),
-                borderRadius: BorderRadius.circular(10),
-              ),
+        Positioned(
+          top: infoPanelTopPadding + (isMobile ? appBarHeight : 0),
+          left: isMobile ? infoPanelSidePadding : null,
+          right: isMobile ? infoPanelSidePadding : 30.0,
+          width: isMobile ? null : infoPanelWidth,
+          height: isMobile
+              ? screenHeight * 0.35 - (kBottomNavigationBarHeight / 2)
+              : null,
+          child: Container(
+            padding: const EdgeInsets.all(15),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(isMobile ? 0.85 : 0.75),
+              borderRadius: isMobile
+                  ? const BorderRadius.only(
+                      topLeft: Radius.circular(15),
+                      topRight: Radius.circular(15),
+                    )
+                  : BorderRadius.circular(10),
+            ),
+            child: SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text(
+                  Text(
                     'About: Right Main ° Hall 1',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 18,
+                      fontSize: ResponsiveUtil.getGalleryInfoPanelTitleFontSize(
+                        context,
+                      ),
                       fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 15),
-                  Text(
-                    'Museum has huge hall that leads to other sections with masterpieces. Left side of the hall have been attached to it in 1989.',
-                    style: TextStyle(
-                      color: Colors.grey[300],
-                      fontSize: 13,
-                      height: 1.4,
                     ),
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    'Major events are took part in this hall, so the walls of it is full with different kind of art woks.', // Typo "woks" kept from image
+                    'Museum has huge hall that leads to other sections with masterpieces. Left side of the hall have been attached to it in 1989.',
                     style: TextStyle(
                       color: Colors.grey[300],
-                      fontSize: 13,
-                      height: 1.4,
+                      fontSize: ResponsiveUtil.getGalleryInfoPanelFontSize(
+                        context,
+                      ),
+                      height: 1.3,
                     ),
                   ),
-                  const SizedBox(height: 25),
-                  // Text(
-                  //   'Chanlibel Museum 1979',
-                  //   style: TextStyle(color: Colors.grey[400], fontSize: 12),
-                  // ),
-                  // Text(
-                  //   'Adim Chanlibel',
-                  //   style: TextStyle(color: Colors.grey[500], fontSize: 11),
-                  // ),
-                  // const SizedBox(height: 20),
-                  _buildAudioPlayerControls(),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Major events are took part in this hall, so the walls of it is full with different kind of art woks.',
+                    style: TextStyle(
+                      color: Colors.grey[300],
+                      fontSize: ResponsiveUtil.getGalleryInfoPanelFontSize(
+                        context,
+                      ),
+                      height: 1.3,
+                    ),
+                  ),
+                  const SizedBox(height: 15),
+                  _buildAudioPlayerControls(context),
                 ],
               ),
             ),
           ),
-
-          // 4. Hotspot (White circle on the vase)
-          // This position is an approximation. In a real app, it might be calculated.
-          // Positioned(
-          //   left: screenWidth * 0.485, // Approximate horizontal center
-          //   top: screenHeight * 0.47, // Approximate vertical center of vase
-          //   child: Container(
-          //     width: 40,
-          //     height: 40,
-          //     decoration: BoxDecoration(
-          //       color: Colors.white.withOpacity(0.9),
-          //       shape: BoxShape.circle,
-          //       border: Border.all(
-          //         color: Colors.black.withOpacity(0.7),
-          //         width: 6,
-          //       ),
-          //       boxShadow: [
-          //         BoxShadow(
-          //           color: Colors.black.withOpacity(0.3),
-          //           blurRadius: 5,
-          //           spreadRadius: 1,
-          //         ),
-          //       ],
-          //     ),
-          //   ),
-          // ),
-
-          // 5. Bottom Left: Fullscreen Icon
-          // Positioned(
-          //   bottom: 20,
-          //   left: 20,
-          //   child: Container(
-          //     padding: const EdgeInsets.all(8),
-          //     decoration: BoxDecoration(
-          //       color: Colors.black.withOpacity(0.6),
-          //       borderRadius: BorderRadius.circular(5),
-          //     ),
-          //     child: const Icon(
-          //       Icons.fullscreen,
-          //       color: Colors.white,
-          //       size: 28,
-          //     ),
-          //   ),
-          // ),
-
-          // 6. Bottom Center: Up Arrow
-          // Positioned(
-          //   bottom: 20,
-          //   left: 0,
-          //   right: 0,
-          //   child: Center(
-          //     child: Icon(
-          //       Icons.keyboard_arrow_up,
-          //       color: Colors.white.withOpacity(0.7),
-          //       size: 60,
-          //       shadows: [
-          //         Shadow(
-          //           blurRadius: 10.0,
-          //           color: Colors.black.withOpacity(0.5),
-          //           offset: const Offset(0, 0),
-          //         ),
-          //       ],
-          //     ),
-          //   ),
-          // ),
-
-          // 7. Bottom Right: Zoom Controls
-          // Positioned(
-          //   bottom: 20,
-          //   right: 20,
-          //   child: Container(
-          //     decoration: BoxDecoration(
-          //       color: Colors.black.withOpacity(0.6),
-          //       borderRadius: BorderRadius.circular(5),
-          //     ),
-          //     child: Column(
-          //       mainAxisSize: MainAxisSize.min,
-          //       children: [
-          //         IconButton(
-          //           icon: const Icon(Icons.add, color: Colors.white),
-          //           onPressed: () {
-          //             /* TODO: Implement zoom in */
-          //           },
-          //           padding: const EdgeInsets.all(4),
-          //           constraints: const BoxConstraints(),
-          //         ),
-          //         Container(
-          //           height: 1,
-          //           width: 30, // Adjust width to match icon button size
-          //           color: Colors.white.withOpacity(0.3),
-          //         ),
-          //         IconButton(
-          //           icon: const Icon(Icons.remove, color: Colors.white),
-          //           onPressed: () {
-          //             /* TODO: Implement zoom out */
-          //           },
-          //           padding: const EdgeInsets.all(4),
-          //           constraints: const BoxConstraints(),
-          //         ),
-          //       ],
-          //     ),
-          //   ),
-          // ),
-        ],
-      ),
+        ),
+      ],
     );
+
+    if (isMobile) {
+      return Scaffold(
+        extendBodyBehindAppBar: true,
+        backgroundColor: Colors.black,
+        appBar: AppBar(
+          title: const Text('Gallery'),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          centerTitle: true,
+          titleTextStyle: const TextStyle(
+            color: Colors.white,
+            fontSize: 20,
+            fontWeight: FontWeight.w500,
+            fontFamily: 'FuturaPT',
+          ),
+        ),
+        body: galleryContent,
+      );
+    } else {
+      return Container(color: Colors.black, child: galleryContent);
+    }
   }
 
-  // Widget _buildWindowDot(Color color) {
-  //   return Container(
-  //     width: 12,
-  //     height: 12,
-  //     decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-  //   );
-  // }
+  Widget _buildAudioPlayerControls(BuildContext context) {
+    final isMobile = ResponsiveUtil.isMobile(context);
+    final iconSize = isMobile ? 28.0 : 36.0;
+    final smallIconSize = isMobile ? 18.0 : 20.0;
 
-  Widget _buildAudioPlayerControls() {
     return Column(
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Row(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.skip_previous, color: Colors.white),
-                  onPressed: () {},
-                ),
-                IconButton(
-                  icon: Icon(
-                    _isPlaying
-                        ? Icons.pause_circle_filled
-                        : Icons.play_circle_filled,
-                    color: Colors.white,
-                    size: 36,
+            Flexible(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: Icon(
+                      Icons.skip_previous,
+                      color: Colors.white,
+                      size: smallIconSize + 4,
+                    ),
+                    onPressed: () {},
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
                   ),
-                  onPressed: () {
-                    setState(() {
-                      _isPlaying = !_isPlaying;
-                    });
-                  },
-                ),
-                IconButton(
-                  icon: const Icon(Icons.skip_next, color: Colors.white),
-                  onPressed: () {},
-                ),
-              ],
+                  SizedBox(width: isMobile ? 4 : 8),
+                  IconButton(
+                    icon: Icon(
+                      _isPlaying
+                          ? Icons.pause_circle_filled
+                          : Icons.play_circle_filled,
+                      color: Colors.white,
+                      size: iconSize,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _isPlaying = !_isPlaying;
+                      });
+                    },
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                  SizedBox(width: isMobile ? 4 : 8),
+                  IconButton(
+                    icon: Icon(
+                      Icons.skip_next,
+                      color: Colors.white,
+                      size: smallIconSize + 4,
+                    ),
+                    onPressed: () {},
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ),
             ),
-            const Text(
-              '01:13/10:52',
-              style: TextStyle(color: Colors.white, fontSize: 12),
+            SizedBox(width: isMobile ? 4 : 8),
+            Flexible(
+              flex: isMobile ? 0 : 1,
+              child: Text(
+                '01:13/10:52',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: isMobile ? 10 : 12,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
+            SizedBox(width: isMobile ? 4 : 8),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              padding: EdgeInsets.symmetric(
+                horizontal: isMobile ? 6 : 8,
+                vertical: isMobile ? 2 : 4,
+              ),
               decoration: BoxDecoration(
                 color: Colors.white.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(4),
               ),
-              child: const Text(
+              child: Text(
                 '1.3x',
-                style: TextStyle(color: Colors.white, fontSize: 12),
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: isMobile ? 10 : 12,
+                ),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 0), // Reduced space
+        const SizedBox(height: 0),
         Row(
           children: [
-            const Icon(Icons.volume_up, color: Colors.white, size: 20),
+            Icon(Icons.volume_up, color: Colors.white, size: smallIconSize),
             const SizedBox(width: 8),
             Expanded(
               child: SliderTheme(
                 data: SliderTheme.of(context).copyWith(
                   trackHeight: 2.0,
-                  thumbShape: const RoundSliderThumbShape(
-                    enabledThumbRadius: 6.0,
+                  thumbShape: RoundSliderThumbShape(
+                    enabledThumbRadius: isMobile ? 5.0 : 6.0,
                   ),
-                  overlayShape: const RoundSliderOverlayShape(
-                    overlayRadius: 12.0,
+                  overlayShape: RoundSliderOverlayShape(
+                    overlayRadius: isMobile ? 10.0 : 12.0,
                   ),
                   activeTrackColor: Colors.white,
                   inactiveTrackColor: Colors.grey[700],
@@ -339,17 +276,6 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage> {
                 ),
               ),
             ),
-            // This speaker icon from image seems to be a general volume indicator not mute
-            // If it's a mute toggle, use something like:
-            // IconButton(
-            //   icon: Icon(_volume > 0 ? Icons.volume_up : Icons.volume_off, color: Colors.white),
-            //   onPressed: () {
-            //     setState(() {
-            //       if (_volume > 0) _volume = 0;
-            //       else _volume = 0.5; // Or previous volume
-            //     });
-            //   },
-            // ),
           ],
         ),
       ],
