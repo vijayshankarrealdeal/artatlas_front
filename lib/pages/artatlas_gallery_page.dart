@@ -1,20 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:hack_front/responsive_util.dart';
+import 'package:hack_front/providers/gallery_provider.dart';
+import 'package:hack_front/utils/responsive_util.dart';
+import 'package:provider/provider.dart';
 
-class ArtatlasGalleryPage extends StatefulWidget {
-  final Function(int)? onNavigateToTab;
-  const ArtatlasGalleryPage({super.key, this.onNavigateToTab});
-
-  @override
-  State<ArtatlasGalleryPage> createState() => _ArtatlasGalleryPageState();
-}
-
-class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage> {
-  double _volume = 0.7;
-  bool _isPlaying = true;
+class ArtatlasGalleryPage extends StatelessWidget {
+  const ArtatlasGalleryPage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final galleryProvider = Provider.of<GalleryProvider>(context);
     final screenHeight = MediaQuery.of(context).size.height;
     final screenWidth = MediaQuery.of(context).size.width;
     final isMobile = ResponsiveUtil.isMobile(context);
@@ -29,18 +23,27 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage> {
         ? (screenWidth - infoPanelWidth) / 2
         : 30.0;
 
+    // Ensure assets are in pubspec.yaml and at these paths
+    // assets:
+    //  - assets/images/xx.png
+    //  - assets/images/night.png
     Widget galleryContent = Stack(
       children: [
         Positioned.fill(
           child: Image.asset(
             Theme.of(context).brightness == Brightness.light
-                ? 'assets/images/xx.png'
-                : 'assets/images/night.png',
+                ? 'assets/images/xx.png' // Make sure this image exists
+                : 'assets/images/night.png', // Make sure this image exists
             fit: BoxFit.cover,
             errorBuilder: (context, error, stackTrace) {
               return Container(
                 color: Colors.grey[800],
-                child: const Center(child: Text("Error loading image")),
+                child: Center(
+                    child: Text(
+                  "Error loading background image. Check asset path.",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.white),
+                )),
               );
             },
           ),
@@ -126,7 +129,7 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage> {
                     ),
                   ),
                   const SizedBox(height: 15),
-                  _buildAudioPlayerControls(context),
+                  _buildAudioPlayerControls(context, galleryProvider),
                 ],
               ),
             ),
@@ -148,7 +151,7 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage> {
             color: Colors.white,
             fontSize: 20,
             fontWeight: FontWeight.w500,
-            fontFamily: 'FuturaPT',
+            fontFamily: 'FuturaPT', // Ensure font family is applied
           ),
         ),
         body: galleryContent,
@@ -158,7 +161,8 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage> {
     }
   }
 
-  Widget _buildAudioPlayerControls(BuildContext context) {
+  Widget _buildAudioPlayerControls(
+      BuildContext context, GalleryProvider provider) {
     final isMobile = ResponsiveUtil.isMobile(context);
     final iconSize = isMobile ? 28.0 : 36.0;
     final smallIconSize = isMobile ? 18.0 : 20.0;
@@ -178,24 +182,22 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage> {
                       color: Colors.white,
                       size: smallIconSize + 4,
                     ),
-                    onPressed: () {},
+                    onPressed: () {
+                      // TODO: Implement skip previous logic in provider
+                    },
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                   ),
                   SizedBox(width: isMobile ? 4 : 8),
                   IconButton(
                     icon: Icon(
-                      _isPlaying
+                      provider.isPlaying
                           ? Icons.pause_circle_filled
                           : Icons.play_circle_filled,
                       color: Colors.white,
                       size: iconSize,
                     ),
-                    onPressed: () {
-                      setState(() {
-                        _isPlaying = !_isPlaying;
-                      });
-                    },
+                    onPressed: () => provider.togglePlayPause(),
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                   ),
@@ -206,7 +208,9 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage> {
                       color: Colors.white,
                       size: smallIconSize + 4,
                     ),
-                    onPressed: () {},
+                    onPressed: () {
+                      // TODO: Implement skip next logic in provider
+                    },
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                   ),
@@ -217,7 +221,7 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage> {
             Flexible(
               flex: isMobile ? 0 : 1,
               child: Text(
-                '01:13/10:52',
+                '01:13/10:52', // TODO: Get from provider
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: isMobile ? 10 : 12,
@@ -236,7 +240,7 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage> {
                 borderRadius: BorderRadius.circular(4),
               ),
               child: Text(
-                '1.3x',
+                '1.3x', // TODO: Get playback speed from provider
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: isMobile ? 10 : 12,
@@ -265,14 +269,10 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage> {
                   thumbColor: Colors.white,
                 ),
                 child: Slider(
-                  value: _volume,
+                  value: provider.volume,
                   min: 0.0,
                   max: 1.0,
-                  onChanged: (newVolume) {
-                    setState(() {
-                      _volume = newVolume;
-                    });
-                  },
+                  onChanged: (newVolume) => provider.setVolume(newVolume),
                 ),
               ),
             ),

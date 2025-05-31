@@ -1,147 +1,36 @@
 import 'package:flutter/material.dart';
 import 'package:hack_front/models/artwork_model.dart';
-import 'package:hack_front/responsive_util.dart';
+import 'package:hack_front/providers/collections_provider.dart';
+import 'package:hack_front/providers/navigation_provider.dart';
+import 'package:hack_front/utils/responsive_util.dart';
+import 'package:provider/provider.dart';
 
-class ArtatlasCollectionsPage extends StatefulWidget {
-  final Function(int)? onNavigateToTab;
-  const ArtatlasCollectionsPage({super.key, this.onNavigateToTab});
-
-  @override
-  State<ArtatlasCollectionsPage> createState() =>
-      _ArtatlasCollectionsPageState();
-}
-
-class _ArtatlasCollectionsPageState extends State<ArtatlasCollectionsPage> {
-  bool _filtersVisible = false;
-
-  String? _selectedSort = 'Sort: By Relevance';
-  String? _selectedDate = 'Date: 1800 - 1980';
-  String? _selectedClassification;
-  String? _selectedArtist;
-  String? _selectedStyle;
-
-  List<Map<String, String?>> _activeFilterChips = [];
-
-  final List<String> _sortOptions = [
-    'Sort: By Relevance',
-    'Sort: By Date',
-    'Sort: By Artist',
-  ];
-  final List<String> _dateOptions = [
-    'Date: 1800 - 1980',
-    'Date: 1900 - Present',
-    'All Dates',
-  ];
-  final List<String> _classificationOptions = [
-    'Classifications',
-    'Painting',
-    'Sculpture',
-    'Photography',
-  ];
-  final List<String> _artistOptions = [
-    'Artists',
-    'Van Gogh',
-    'Monet',
-    'Picasso',
-  ];
-  final List<String> _styleOptions = [
-    'Styles',
-    'Impressionism',
-    'Cubism',
-    'Surrealism',
-  ];
-
-  @override
-  void initState() {
-    super.initState();
-    _selectedClassification = _classificationOptions.first;
-    _selectedArtist = _artistOptions.first;
-    _selectedStyle = _styleOptions.first;
-    _updateActiveFilterChips();
-  }
-
-  void _toggleFiltersVisibility() {
-    setState(() {
-      _filtersVisible = !_filtersVisible;
-    });
-  }
-
-  void _updateActiveFilterChips() {
-    _activeFilterChips.clear();
-    if (_selectedSort == 'Sort: By Relevance') {
-      _activeFilterChips.add({'type': 'sort', 'label': _selectedSort});
-    }
-    if (_selectedDate == 'Date: 1800 - 1980') {
-      _activeFilterChips.add({'type': 'date', 'label': _selectedDate});
-    }
-    if (_selectedClassification != null &&
-        _selectedClassification != _classificationOptions.first) {
-      _activeFilterChips.add({
-        'type': 'classification',
-        'label': _selectedClassification,
-      });
-    }
-    if (_selectedArtist != null && _selectedArtist != _artistOptions.first) {
-      _activeFilterChips.add({'type': 'artist', 'label': _selectedArtist});
-    }
-    if (_selectedStyle != null && _selectedStyle != _styleOptions.first) {
-      _activeFilterChips.add({'type': 'style', 'label': _selectedStyle});
-    }
-    if (mounted) {
-      setState(() {});
-    }
-  }
-
-  void _removeFilterChip(String type, String? label) {
-    setState(() {
-      if (type == 'sort') {
-        _selectedSort = _sortOptions.first;
-      }
-      if (type == 'date') {
-        _selectedDate = _dateOptions.first;
-      }
-      if (type == 'classification') {
-        _selectedClassification = _classificationOptions.first;
-      }
-      if (type == 'artist') {
-        _selectedArtist = _artistOptions.first;
-      }
-      if (type == 'style') {
-        _selectedStyle = _styleOptions.first;
-      }
-      _updateActiveFilterChips();
-    });
-  }
-
-  void _clearAllFilters() {
-    setState(() {
-      _selectedSort = _sortOptions.first;
-      _selectedDate = _dateOptions.first;
-      _selectedClassification = _classificationOptions.first;
-      _selectedArtist = _artistOptions.first;
-      _selectedStyle = _styleOptions.first;
-      _updateActiveFilterChips();
-    });
-  }
+class ArtatlasCollectionsPage extends StatelessWidget {
+  const ArtatlasCollectionsPage({super.key});
 
   Widget _buildDesktopHeader(BuildContext context) {
     final navFontSize = ResponsiveUtil.getHeaderNavFontSize(context);
     final headerPadding = ResponsiveUtil.getBodyPadding(context);
+    final navigationProvider = Provider.of<NavigationProvider>(context, listen: false);
 
     void handleDesktopHeaderLinkTap(String routeName) {
       int targetIndex = -1;
       if (routeName == 'Home') targetIndex = 0;
       if (routeName == 'Galleries') targetIndex = 1;
+      // "Collection" is the current page, no action or handled by provider if it were a different page.
 
-      if (targetIndex != -1 && widget.onNavigateToTab != null) {
-        widget.onNavigateToTab!(targetIndex);
-      } else {
-        print("Desktop header link tapped: $routeName (no action or self)");
+      if (targetIndex != -1) {
+        navigationProvider.onItemTapped(targetIndex);
       }
     }
 
     Widget navLink(String text) {
       bool isThisPageLink = text == "Collection";
+      int currentTabIndex = navigationProvider.selectedIndex;
+      bool isActive = (text == 'Home' && currentTabIndex == 0) ||
+                      (text == 'Galleries' && currentTabIndex == 1) ||
+                      (text == 'Collection' && currentTabIndex == 2);
+
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 15.0),
         child: GestureDetector(
@@ -150,12 +39,12 @@ class _ArtatlasCollectionsPageState extends State<ArtatlasCollectionsPage> {
             text,
             style: TextStyle(
               fontSize: navFontSize,
-              color: isThisPageLink
+              color: isActive
                   ? Colors.blueAccent
                   : Theme.of(context).brightness == Brightness.dark
-                  ? Colors.white38
-                  : Colors.black87,
-              fontWeight: isThisPageLink ? FontWeight.w400 : FontWeight.w300,
+                      ? Colors.white70 // Adjusted for better visibility in dark theme
+                      : Colors.black87,
+              fontWeight: isActive ? FontWeight.w400 : FontWeight.w300,
             ),
           ),
         ),
@@ -203,12 +92,15 @@ class _ArtatlasCollectionsPageState extends State<ArtatlasCollectionsPage> {
     );
   }
 
-  Widget _buildFilterDropdowns(BuildContext context) {
+  Widget _buildFilterDropdowns(
+      BuildContext context, CollectionsProvider provider) {
     final isMobile = ResponsiveUtil.isMobile(context);
+
     Widget filterDropdown({
       required String? value,
       required List<String> items,
       required ValueChanged<String?> onChanged,
+      required String hintText,
     }) {
       Widget dropdown = Container(
         margin: EdgeInsets.symmetric(
@@ -217,13 +109,15 @@ class _ArtatlasCollectionsPageState extends State<ArtatlasCollectionsPage> {
         ),
         padding: const EdgeInsets.symmetric(horizontal: 12.0),
         decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey.shade400),
+          // Use Theme colors for border
+          border: Border.all(color: Theme.of(context).dividerColor),
           borderRadius: BorderRadius.circular(4.0),
         ),
         child: DropdownButtonHideUnderline(
           child: DropdownButton<String>(
             isExpanded: true,
             value: value,
+            hint: Text(hintText, style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
             items: items
                 .map<DropdownMenuItem<String>>(
                   (String val) => DropdownMenuItem<String>(
@@ -232,20 +126,19 @@ class _ArtatlasCollectionsPageState extends State<ArtatlasCollectionsPage> {
                       val,
                       style: TextStyle(
                         fontSize: 13,
-                        color: val == items.first
-                            ? Colors.grey.shade600
-                            : Colors.black87,
+                        // Use Theme colors for text
+                        color: val == items.first && items.first.contains(":") // Heuristic for placeholder
+                            ? Theme.of(context).hintColor
+                            : Theme.of(context).textTheme.bodyLarge?.color,
                       ),
                     ),
                   ),
                 )
                 .toList(),
-            onChanged: (newValue) {
-              onChanged(newValue);
-              _updateActiveFilterChips();
-            },
-            style: const TextStyle(fontSize: 14),
-            icon: const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
+            onChanged: onChanged,
+            style: TextStyle(fontSize: 14, color: Theme.of(context).textTheme.bodyLarge?.color),
+            icon: Icon(Icons.keyboard_arrow_down, color: Theme.of(context).hintColor),
+            dropdownColor: Theme.of(context).cardColor,
           ),
         ),
       );
@@ -254,55 +147,68 @@ class _ArtatlasCollectionsPageState extends State<ArtatlasCollectionsPage> {
 
     List<Widget> dropdownWidgets = [
       filterDropdown(
-        value: _selectedSort,
-        items: _sortOptions,
-        onChanged: (val) => setState(() => _selectedSort = val),
+        value: provider.selectedSort,
+        items: provider.sortOptions,
+        onChanged: (val) => provider.updateSelectedSort(val),
+        hintText: "Sort by"
       ),
       filterDropdown(
-        value: _selectedDate,
-        items: _dateOptions,
-        onChanged: (val) => setState(() => _selectedDate = val),
+        value: provider.selectedDate,
+        items: provider.dateOptions,
+        onChanged: (val) => provider.updateSelectedDate(val),
+        hintText: "Date range"
       ),
       filterDropdown(
-        value: _selectedClassification,
-        items: _classificationOptions,
-        onChanged: (val) => setState(() => _selectedClassification = val),
+        value: provider.selectedClassification,
+        items: provider.classificationOptions,
+        onChanged: (val) => provider.updateSelectedClassification(val),
+        hintText: "Classification"
       ),
       filterDropdown(
-        value: _selectedArtist,
-        items: _artistOptions,
-        onChanged: (val) => setState(() => _selectedArtist = val),
+        value: provider.selectedArtist,
+        items: provider.artistOptions,
+        onChanged: (val) => provider.updateSelectedArtist(val),
+        hintText: "Artist"
       ),
       filterDropdown(
-        value: _selectedStyle,
-        items: _styleOptions,
-        onChanged: (val) => setState(() => _selectedStyle = val),
+        value: provider.selectedStyle,
+        items: provider.styleOptions,
+        onChanged: (val) => provider.updateSelectedStyle(val),
+        hintText: "Style"
       ),
     ];
+
     return Visibility(
-      visible: _filtersVisible,
+      visible: provider.filtersVisible,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 15.0),
         child: isMobile
-            ? Column(children: dropdownWidgets)
-            : Row(children: dropdownWidgets),
+            ? Column(
+                children: dropdownWidgets
+                    .map((w) => Padding(padding: const EdgeInsets.symmetric(vertical: 4.0), child: w))
+                    .toList())
+            : Row(
+                children: dropdownWidgets
+                    .map((w) => Expanded(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 4.0), child: w)))
+                    .toList()),
       ),
     );
   }
 
-  Widget _buildActiveFilters(BuildContext context) {
-    if (_activeFilterChips.isEmpty && !_filtersVisible) {
+  Widget _buildActiveFilters(
+      BuildContext context, CollectionsProvider provider) {
+    if (provider.activeFilterChips.isEmpty && !provider.filtersVisible) {
       return const SizedBox.shrink();
     }
-    if (_activeFilterChips.isEmpty && _filtersVisible) {
+    if (provider.activeFilterChips.isEmpty && provider.filtersVisible) {
       return Padding(
         padding: const EdgeInsets.only(top: 0, bottom: 15.0),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            if (_filtersVisible)
+            if (provider.filtersVisible)
               TextButton(
-                onPressed: _clearAllFilters,
+                onPressed: provider.clearAllFilters,
                 child: const Text(
                   'Clear All',
                   style: TextStyle(color: Colors.blueAccent, fontSize: 13),
@@ -320,19 +226,19 @@ class _ArtatlasCollectionsPageState extends State<ArtatlasCollectionsPage> {
             child: Wrap(
               spacing: 8.0,
               runSpacing: 8.0,
-              children: _activeFilterChips
+              children: provider.activeFilterChips
                   .map(
                     (chipData) => Chip(
                       label: Text(
                         chipData['label']!,
-                        style: const TextStyle(fontSize: 12),
+                        style: TextStyle(fontSize: 12, color: Theme.of(context).textTheme.bodySmall?.color),
                       ),
-                      onDeleted: () => _removeFilterChip(
+                      onDeleted: () => provider.removeFilterChip(
                         chipData['type']!,
                         chipData['label'],
                       ),
-                      deleteIcon: const Icon(Icons.close, size: 14),
-                      backgroundColor: Colors.grey.shade200,
+                      deleteIcon: Icon(Icons.close, size: 14, color: Theme.of(context).iconTheme.color?.withOpacity(0.7)),
+                      backgroundColor: Theme.of(context).chipTheme.backgroundColor,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 6.0,
                         vertical: 2.0,
@@ -346,9 +252,9 @@ class _ArtatlasCollectionsPageState extends State<ArtatlasCollectionsPage> {
                   .toList(),
             ),
           ),
-          if (_activeFilterChips.isNotEmpty)
+          if (provider.activeFilterChips.isNotEmpty)
             TextButton(
-              onPressed: _clearAllFilters,
+              onPressed: provider.clearAllFilters,
               child: const Text(
                 'Clear All',
                 style: TextStyle(color: Colors.blueAccent, fontSize: 13),
@@ -359,7 +265,8 @@ class _ArtatlasCollectionsPageState extends State<ArtatlasCollectionsPage> {
     );
   }
 
-  Widget _buildArtworkGrid(BuildContext context) {
+  Widget _buildArtworkGrid(
+      BuildContext context, CollectionsProvider provider) {
     final crossAxisCount = ResponsiveUtil.getCrossAxisCountForCollectionsGrid(
       context,
     );
@@ -367,7 +274,14 @@ class _ArtatlasCollectionsPageState extends State<ArtatlasCollectionsPage> {
       context,
     );
     const double spacing = 16.0;
-    final filteredArtworks = sampleArtworks;
+
+    if (provider.isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (provider.artworks.isEmpty && !provider.isLoading) {
+      return const Center(child: Text("No artworks found matching your criteria."));
+    }
+
     return GridView.builder(
       padding: const EdgeInsets.only(top: 20.0),
       shrinkWrap: true,
@@ -378,9 +292,9 @@ class _ArtatlasCollectionsPageState extends State<ArtatlasCollectionsPage> {
         mainAxisSpacing: spacing,
         childAspectRatio: childAspectRatio,
       ),
-      itemCount: filteredArtworks.length,
+      itemCount: provider.artworks.length,
       itemBuilder: (context, index) {
-        final artwork = filteredArtworks[index];
+        final artwork = provider.artworks[index];
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -395,7 +309,7 @@ class _ArtatlasCollectionsPageState extends State<ArtatlasCollectionsPage> {
                   fit: BoxFit.cover,
                   width: double.infinity,
                   errorBuilder: (context, error, stackTrace) => Container(
-                    color: Colors.grey.shade300,
+                    color: Theme.of(context).colorScheme.surfaceVariant,
                     child: const Center(child: Icon(Icons.broken_image)),
                   ),
                   loadingBuilder: (context, child, loadingProgress) {
@@ -407,7 +321,7 @@ class _ArtatlasCollectionsPageState extends State<ArtatlasCollectionsPage> {
                         strokeWidth: 2.0,
                         value: loadingProgress.expectedTotalBytes != null
                             ? loadingProgress.cumulativeBytesLoaded /
-                                  loadingProgress.expectedTotalBytes!
+                                loadingProgress.expectedTotalBytes!
                             : null,
                       ),
                     );
@@ -418,14 +332,14 @@ class _ArtatlasCollectionsPageState extends State<ArtatlasCollectionsPage> {
             const SizedBox(height: 8),
             Text(
               '${artwork.title} — ${artwork.year}',
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Theme.of(context).textTheme.bodyLarge?.color),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: 4),
             Text(
               artwork.artist,
-              style: const TextStyle(fontSize: 12, color: Colors.black54),
+              style: TextStyle(fontSize: 12, color: Theme.of(context).hintColor),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -437,27 +351,37 @@ class _ArtatlasCollectionsPageState extends State<ArtatlasCollectionsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final collectionsProvider = Provider.of<CollectionsProvider>(context);
     final isMobile = ResponsiveUtil.isMobile(context);
     final bodyPadding = ResponsiveUtil.getBodyPadding(context);
     double contentMaxWidth = ResponsiveUtil.isDesktop(context)
         ? MediaQuery.of(context).size.width * 0.90
         : MediaQuery.of(context).size.width;
 
+    // Theme adjustments for TextField and Icons to work with dark/light themes
+    final hintColor = Theme.of(context).hintColor;
+    final iconColor = Theme.of(context).iconTheme.color;
+
+
     Widget searchBar = Padding(
       padding: EdgeInsets.symmetric(
         vertical: 10.0,
-        horizontal: isMobile ? 0 : 0,
+        horizontal: isMobile ? 0 : 0, // No extra horizontal padding if already in bodyPadding
       ),
       child: Row(
         children: [
-          const Icon(Icons.search, color: Colors.grey),
+          Icon(Icons.search, color: iconColor),
           const SizedBox(width: 8),
-          const Expanded(
+          Expanded(
             child: TextField(
+              style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color),
               decoration: InputDecoration.collapsed(
                 hintText: 'Search by painting, artists or keyword',
-                hintStyle: TextStyle(color: Colors.grey, fontSize: 14),
+                hintStyle: TextStyle(color: hintColor, fontSize: 14),
               ),
+              onChanged: (query) {
+                // collectionsProvider.updateSearchQuery(query); // Implement in provider
+              },
             ),
           ),
         ],
@@ -473,23 +397,25 @@ class _ArtatlasCollectionsPageState extends State<ArtatlasCollectionsPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (isMobile) const SizedBox(height: 16),
+              if (isMobile) const SizedBox(height: 16), // Top padding for mobile content
               searchBar,
               if (!isMobile)
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton.icon(
-                    onPressed: _toggleFiltersVisibility,
+                    onPressed: collectionsProvider.toggleFiltersVisibility,
                     icon: Icon(
-                      _filtersVisible
+                      collectionsProvider.filtersVisible
                           ? Icons.filter_list_off_outlined
                           : Icons.filter_list,
-                      color: Colors.black54,
+                      color: iconColor,
                     ),
                     label: Text(
-                      _filtersVisible ? 'Hide Filters' : 'Show Filters',
-                      style: const TextStyle(
-                        color: Colors.black54,
+                      collectionsProvider.filtersVisible
+                          ? 'Hide Filters'
+                          : 'Show Filters',
+                      style: TextStyle(
+                        color: Theme.of(context).textTheme.labelLarge?.color,
                         fontSize: 14,
                       ),
                     ),
@@ -499,11 +425,11 @@ class _ArtatlasCollectionsPageState extends State<ArtatlasCollectionsPage> {
                     ),
                   ),
                 ),
-              _buildFilterDropdowns(context),
-              _buildActiveFilters(context),
-              const Divider(height: 1, thickness: 1),
-              _buildArtworkGrid(context),
-              const SizedBox(height: 40),
+              _buildFilterDropdowns(context, collectionsProvider),
+              _buildActiveFilters(context, collectionsProvider),
+              Divider(height: 1, thickness: 1, color: Theme.of(context).dividerColor),
+              _buildArtworkGrid(context, collectionsProvider),
+              const SizedBox(height: 40), // Bottom padding
             ],
           ),
         ),
@@ -512,33 +438,38 @@ class _ArtatlasCollectionsPageState extends State<ArtatlasCollectionsPage> {
 
     if (isMobile) {
       return Scaffold(
+        // Use theme for AppBar colors
         appBar: AppBar(
           title: const Text('Collections'),
-          centerTitle: false,
+          centerTitle: false, // Typically false for Material Design on mobile
           actions: [
             IconButton(
               icon: Icon(
-                _filtersVisible
+                collectionsProvider.filtersVisible
                     ? Icons.filter_list_off_outlined
                     : Icons.filter_list,
-                color: Colors.black54,
+                color: Theme.of(context).appBarTheme.actionsIconTheme?.color ?? Theme.of(context).iconTheme.color,
               ),
-              onPressed: _toggleFiltersVisibility,
-              tooltip: _filtersVisible ? 'Hide Filters' : 'Show Filters',
+              onPressed: collectionsProvider.toggleFiltersVisibility,
+              tooltip: collectionsProvider.filtersVisible
+                  ? 'Hide Filters'
+                  : 'Show Filters',
             ),
           ],
         ),
         body: SingleChildScrollView(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              minHeight:
-                  MediaQuery.of(context).size.height -
-                  (AppBar().preferredSize.height +
-                      MediaQuery.of(context).padding.top +
-                      kBottomNavigationBarHeight),
-              maxWidth: contentMaxWidth,
+          child: Center( // Center the content if narrower than screen
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight:
+                    MediaQuery.of(context).size.height -
+                    (AppBar().preferredSize.height +
+                        MediaQuery.of(context).padding.top +
+                        (isMobile ? kBottomNavigationBarHeight : 0)), // Account for nav bar
+                maxWidth: contentMaxWidth,
+              ),
+              child: pageContent,
             ),
-            child: pageContent,
           ),
         ),
       );

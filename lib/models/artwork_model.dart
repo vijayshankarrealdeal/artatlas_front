@@ -1,4 +1,5 @@
-// artwork_model.dart (create this file or add to your models file)
+// lib/models/artwork_model.dart
+
 class Artwork {
   final String imageUrl;
   final String title;

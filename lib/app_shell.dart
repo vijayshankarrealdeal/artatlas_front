@@ -1,46 +1,30 @@
 // lib/app_shell.dart
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:hack_front/artatlas_collections_page.dart';
-import 'package:hack_front/artatlas_gallery_page.dart';
-import 'package:hack_front/main.dart'; // For MuseumHomePage
-import 'package:hack_front/responsive_util.dart';
+import 'package:hack_front/providers/navigation_provider.dart';
+import 'package:hack_front/utils/responsive_util.dart';
+import 'package:provider/provider.dart';
 
-class AppShell extends StatefulWidget {
-  const AppShell({super.key});
+class AppShell extends StatelessWidget {
+  final Widget currentPage; // This will be MuseumHomePage, GalleryPage, etc.
 
-  @override
-  State<AppShell> createState() => _AppShellState();
-}
+  const AppShell({super.key, required this.currentPage});
 
-class _AppShellState extends State<AppShell> {
-  int _selectedIndex = 0;
-
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-  }
-
-  late final List<Widget> _pages;
-
-  @override
-  void initState() {
-    super.initState();
-    _pages = <Widget>[
-      MuseumHomePage(onNavigateToTab: _onItemTapped), // Already had it
-      ArtatlasGalleryPage(onNavigateToTab: _onItemTapped), // Add callback
-      ArtatlasCollectionsPage(onNavigateToTab: _onItemTapped), // Add callback
-    ];
-  }
+  // static final List<Widget> _pages = <Widget>[...]; // This is no longer needed here
 
   @override
   Widget build(BuildContext context) {
+    final navigationProvider = Provider.of<NavigationProvider>(
+      context,
+    ); // Still listen for BottomNav
     final isMobile = ResponsiveUtil.isMobile(context);
 
     return Scaffold(
-      body: IndexedStack(index: _selectedIndex, children: _pages),
-      floatingActionButton: _selectedIndex == 1
+      body:
+          currentPage, // Display the page content determined by the RouterDelegate
+      floatingActionButton:
+          navigationProvider.selectedIndex ==
+              1 // Gallery page
           ? FloatingActionButton(
               onPressed: () {
                 ScaffoldMessenger.of(
@@ -67,8 +51,11 @@ class _AppShellState extends State<AppShell> {
                   label: 'Collection',
                 ),
               ],
-              selectedIndex: _selectedIndex,
-              onDestinationSelected: _onItemTapped,
+              selectedIndex: navigationProvider.selectedIndex,
+              // When a destination is selected, NavigationProvider updates its state.
+              // The RouterDelegate listens to NavigationProvider and updates the URL.
+              onDestinationSelected: (index) =>
+                  navigationProvider.onItemTapped(index),
             )
           : null,
     );
