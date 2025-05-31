@@ -1,6 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:hack_front/models/artwork_model.dart';
 import 'package:hack_front/providers/auth_provider.dart'; // For potential logout in settings
 import 'package:hack_front/providers/collections_provider.dart';
 import 'package:hack_front/providers/navigation_provider.dart';

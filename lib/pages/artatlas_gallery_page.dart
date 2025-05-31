@@ -1,6 +1,5 @@
 // lib/pages/artatlas_gallery_page.dart
 import 'package:flutter/material.dart';
-import 'package:hack_front/providers/auth_provider.dart'; // For logout
 import 'package:hack_front/providers/gallery_provider.dart';
 import 'package:hack_front/providers/navigation_provider.dart'; // For navigation
 import 'package:hack_front/providers/theme_provider.dart';
