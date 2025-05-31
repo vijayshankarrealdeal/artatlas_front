@@ -1,0 +1,27 @@
+{
+  "configurations": [
+    {
+      "name": "Flutter",
+      "type": "dart",
+      "request": "launch",
+      "program": "lib/main.dart",
+      "args": [
+        "-d",
+        "chrome",
+        "--web-experimental-hot-reload"
+      ],
+    },
+    {
+      "name": "Launch Chrome",
+      "request": "launch",
+      "type": "chrome",
+      "url": "http://localhost:8080",
+      "webRoot": "${workspaceFolder}",
+      "args": [
+        "-d",
+        "chrome",
+        "--web-experimental-hot-reload"
+      ]
+    }
+  ]
+}
