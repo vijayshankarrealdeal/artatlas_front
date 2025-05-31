@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:hack_front/providers/navigation_provider.dart';
 import 'package:hack_front/utils/responsive_util.dart';
@@ -24,6 +25,7 @@ class ArtatlasHomePage extends StatelessWidget {
   }
 
   Widget _buildPageHeader(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
     final isMobile = ResponsiveUtil.isMobile(context);
     final logoSize = ResponsiveUtil.getHeaderLogoSize(context);
     final navFontSize = ResponsiveUtil.getHeaderNavFontSize(context);
@@ -40,6 +42,7 @@ class ArtatlasHomePage extends StatelessWidget {
             fontSize: logoSize,
             fontWeight: FontWeight.w300,
             letterSpacing: 1.5,
+            color: theme.colorScheme.onBackground,
           ),
         ),
         Text(
@@ -48,6 +51,7 @@ class ArtatlasHomePage extends StatelessWidget {
             fontSize: logoSize,
             fontWeight: FontWeight.w300,
             letterSpacing: 1.5,
+            color: theme.colorScheme.onBackground,
           ),
         ),
       ],
@@ -89,17 +93,22 @@ class ArtatlasHomePage extends StatelessWidget {
         ),
       );
     }
+    // On desktop, AppShell has no AppBar for Home, so this header is the main one.
+    // On mobile, this header is also the main one as AppShell has no AppBar.
     return isMobile
         ? SafeArea(bottom: false, child: headerContent)
         : headerContent;
   }
 
   Widget _navLink(String text, BuildContext context, double fontSize) {
-    final currentTabIndex = Provider.of<NavigationProvider>(
+    final ThemeData theme = Theme.of(context);
+    final navigationProvider = Provider.of<NavigationProvider>(
       context,
       listen: false,
-    ).selectedIndex;
-    bool isCurrentPage =
+    );
+    final currentTabIndex = navigationProvider.selectedIndex;
+
+    bool isActive =
         (text == 'Home' && currentTabIndex == 0) ||
         (text == 'Galleries' && currentTabIndex == 1) ||
         (text == 'Collection' && currentTabIndex == 2);
@@ -112,10 +121,10 @@ class ArtatlasHomePage extends StatelessWidget {
           text,
           style: TextStyle(
             fontSize: fontSize,
-            fontWeight: isCurrentPage ? FontWeight.w400 : FontWeight.w200,
-            color: isCurrentPage
-                ? Colors.blueAccent
-                : null, // Highlight active tab
+            fontWeight: isActive ? FontWeight.w500 : FontWeight.w300,
+            color: isActive
+                ? theme.colorScheme.primary
+                : theme.colorScheme.onBackground.withOpacity(0.7),
           ),
         ),
       ),
@@ -124,6 +133,7 @@ class ArtatlasHomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
     double contentMaxWidth = ResponsiveUtil.isDesktop(context)
         ? MediaQuery.of(context).size.width * 0.85
         : MediaQuery.of(context).size.width;
@@ -137,56 +147,51 @@ class ArtatlasHomePage extends StatelessWidget {
         ? _buildMobileContent(context, titleFontSize, quoteFontSize)
         : _buildDesktopTabletContent(context, titleFontSize, quoteFontSize);
 
-    return Center(
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: contentMaxWidth),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildPageHeader(context),
-            Expanded(
-              child: Padding(
-                padding: EdgeInsets.only(
-                  left: bodyPadding,
-                  right: bodyPadding,
-                  bottom: bodyPadding,
+    return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
+      body: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: contentMaxWidth),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildPageHeader(context), // This is the page's own header
+              Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    left: bodyPadding,
+                    right: bodyPadding,
+                    bottom: bodyPadding,
+                  ),
+                  child: mainContentArea,
                 ),
-                child: mainContentArea,
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildImageSection(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
     final isMobile = ResponsiveUtil.isMobile(context);
-    const double desiredAspectRatio = 3 / 4; //  3:4 width to height ratio
+    const double desiredAspectRatio = 3 / 4;
 
     Widget imageWidget = AspectRatio(
       aspectRatio: desiredAspectRatio,
-      child: Image.network(
-        imageUrl,
+      child: CachedNetworkImage(
+        imageUrl: imageUrl,
         fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
+        errorWidget: (context, error, stackTrace) {
           return Container(
-            // Added container for consistent sizing on error
-            color: Colors.grey[800],
-            child: const Center(child: Text('Image failed to load')),
-          );
-        },
-        loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) return child;
-          return Container(
-            // Added container for consistent sizing during load
-            color: Colors.grey[850],
+            color: theme.colorScheme.surfaceVariant,
             child: Center(
-              child: CircularProgressIndicator(
-                value: loadingProgress.expectedTotalBytes != null
-                    ? loadingProgress.cumulativeBytesLoaded /
-                          loadingProgress.expectedTotalBytes!
-                    : null,
+              child: Text(
+                'Image failed to load',
+                style: TextStyle(
+                  color: theme.colorScheme.onSurfaceVariant.withOpacity(0.7),
+                ),
               ),
             ),
           );
@@ -213,6 +218,7 @@ class ArtatlasHomePage extends StatelessWidget {
     double titleFontSize,
     double quoteFontSize,
   ) {
+    final ThemeData theme = Theme.of(context);
     final isMobile = ResponsiveUtil.isMobile(context);
     return Padding(
       padding: EdgeInsets.only(top: isMobile ? 24.0 : 20.0),
@@ -227,6 +233,7 @@ class ArtatlasHomePage extends StatelessWidget {
               fontWeight: FontWeight.w300,
               letterSpacing: 1.2,
               height: 1.1,
+              color: theme.colorScheme.onBackground,
             ),
           ),
           Text(
@@ -236,6 +243,7 @@ class ArtatlasHomePage extends StatelessWidget {
               fontWeight: FontWeight.w300,
               letterSpacing: 1.2,
               height: 1.1,
+              color: theme.colorScheme.onBackground,
             ),
           ),
           const SizedBox(height: 20),
@@ -245,6 +253,7 @@ class ArtatlasHomePage extends StatelessWidget {
               fontSize: quoteFontSize,
               height: 1.5,
               fontStyle: FontStyle.normal,
+              color: theme.textTheme.bodyLarge?.color,
             ),
           ),
           const SizedBox(height: 15),
@@ -255,6 +264,7 @@ class ArtatlasHomePage extends StatelessWidget {
               style: TextStyle(
                 fontSize: quoteFontSize,
                 fontStyle: FontStyle.italic,
+                color: theme.textTheme.bodyMedium?.color,
               ),
             ),
           ),

@@ -1,15 +1,95 @@
 // lib/pages/artatlas_gallery_page.dart
 import 'package:flutter/material.dart';
+import 'package:hack_front/providers/auth_provider.dart'; // For logout
 import 'package:hack_front/providers/gallery_provider.dart';
+import 'package:hack_front/providers/navigation_provider.dart'; // For navigation
+import 'package:hack_front/providers/theme_provider.dart';
 import 'package:hack_front/utils/responsive_util.dart';
 import 'package:provider/provider.dart';
 
 class ArtatlasGalleryPage extends StatelessWidget {
   const ArtatlasGalleryPage({super.key});
 
+  // Helper for Desktop Header navigation links (similar to CollectionsPage)
+  Widget _buildSimpleNavLink(
+    String text,
+    int targetIndex,
+    BuildContext context,
+  ) {
+    final ThemeData theme = Theme.of(context);
+    final navigationProvider = Provider.of<NavigationProvider>(
+      context,
+      listen: false,
+    );
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12.0),
+      child: InkWell(
+        onTap: () => navigationProvider.onItemTapped(targetIndex),
+        borderRadius: BorderRadius.circular(4),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4.0),
+          child: Text(
+            text,
+            style: TextStyle(
+              fontSize: ResponsiveUtil.getHeaderNavFontSize(context) * 0.9,
+              color: theme.colorScheme.onBackground.withOpacity(0.7),
+              fontWeight: FontWeight.w400,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDesktopHeaderControls(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: ResponsiveUtil.getBodyPadding(context),
+        vertical: 15.0,
+      ), // Consistent padding
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Text(
+            "Gallery",
+            style: theme.textTheme.headlineMedium?.copyWith(
+              fontWeight: FontWeight.w300,
+            ),
+          ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildSimpleNavLink("Home", 0, context),
+              // "Gallery" is current, so show as active text
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                child: Text(
+                  "Gallery",
+                  style: TextStyle(
+                    fontSize:
+                        ResponsiveUtil.getHeaderNavFontSize(context) * 0.9,
+                    color: theme.colorScheme.primary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              _buildSimpleNavLink("Collection", 2, context),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final galleryProvider = Provider.of<GalleryProvider>(context);
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final ThemeData currentTheme = Theme.of(context);
+
     final screenHeight = MediaQuery.of(context).size.height;
     final screenWidth = MediaQuery.of(context).size.width;
     final isMobile = ResponsiveUtil.isMobile(context);
@@ -17,104 +97,83 @@ class ArtatlasGalleryPage extends StatelessWidget {
     final infoPanelWidth = ResponsiveUtil.getGalleryInfoPanelWidth(context);
     final appBarHeight = isMobile ? kToolbarHeight : 0;
 
-    // Mobile: This defines the top of the "sheet-like" panel
     final infoPanelTopPaddingMobile = screenHeight * 0.60 - appBarHeight;
-    // Desktop/Tablet: This will be padding from bottom and left
     const double desktopEdgePadding = 30.0;
 
-    Widget galleryContent = Stack(
+    final String backgroundImageAsset = themeProvider.isDarkMode
+        ? 'assets/images/night.png'
+        : 'assets/images/xx.png';
+
+    final Color overlayTextColor = Colors.white;
+    final Color overlayIconColor = Colors.white;
+    final Color overlayMutedTextColor = Colors.grey.shade300;
+    final Color overlayBackgroundColor = Colors.black.withOpacity(
+      isMobile ? 0.85 : 0.75,
+    );
+
+    // Main content stack (image and info panel)
+    Widget mediaContentStack = Stack(
       children: [
         Positioned.fill(
           child: Image.asset(
-            Theme.of(context).brightness == Brightness.light
-                ? 'assets/images/xx.png'
-                : 'assets/images/night.png',
+            backgroundImageAsset,
             fit: BoxFit.cover,
             errorBuilder: (context, error, stackTrace) {
+              /* ... error builder ... */
               return Container(
-                color: Colors.grey[800],
+                color: currentTheme.colorScheme.surface,
                 child: Center(
                   child: Text(
-                    "Error loading background image. Check asset path.",
+                    "Error loading background image.",
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white),
+                    style: TextStyle(
+                      color: currentTheme.colorScheme.onSurface.withOpacity(
+                        0.7,
+                      ),
+                    ),
                   ),
                 ),
               );
             },
           ),
         ),
-        if (!isMobile)
-          Positioned(
-            top: 50,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: Text(
-                'Gallery',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 32,
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: 2,
-                  shadows: [
-                    Shadow(
-                      blurRadius: 10.0,
-                      color: Colors.black.withOpacity(0.7),
-                      offset: const Offset(2.0, 2.0),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
+
+        // The "Gallery" title that was previously in the Stack is removed,
+        // as it's now part of _buildDesktopHeaderControls or the mobile AppBar.
         Positioned(
-          // Mobile: Positioned from the top, centered horizontally.
+          // Positioning logic for info panel (bottom-left on desktop, centered sheet on mobile)
           top: isMobile ? infoPanelTopPaddingMobile : null,
           left: isMobile
               ? (screenWidth - infoPanelWidth) / 2
               : (!isMobile ? desktopEdgePadding : null),
-
-          // Desktop/Tablet: Positioned from the bottom.
           bottom: !isMobile ? desktopEdgePadding : null,
-
-          // Mobile: Centered horizontally.
-          // Desktop/Tablet: Not constrained from the right, width is set below.
           right: isMobile ? (screenWidth - infoPanelWidth) / 2 : null,
-
-          // Width:
-          // For mobile, width is implicitly defined by left/right.
-          // For desktop/tablet, width is explicitly set.
           width: !isMobile ? infoPanelWidth : null,
-
-          // Height:
-          // Mobile has a fixed proportional height.
-          // Desktop/Tablet height is intrinsic to content.
           height: isMobile
               ? screenHeight * 0.35 - (kBottomNavigationBarHeight / 2)
               : null,
           child: Container(
             padding: const EdgeInsets.all(15),
             decoration: BoxDecoration(
-              color: Colors.black.withOpacity(isMobile ? 0.85 : 0.75),
+              color: overlayBackgroundColor,
               borderRadius: isMobile
                   ? const BorderRadius.only(
                       topLeft: Radius.circular(15),
                       topRight: Radius.circular(15),
                     )
-                  : BorderRadius.circular(
-                      10,
-                    ), // Standard rounded corners for desktop/tablet
+                  : BorderRadius.circular(10),
             ),
             child: SingleChildScrollView(
+              // Info panel content
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
+                    /* ... About title ... */
                     'About: Right Main ° Hall 1',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: overlayTextColor,
                       fontSize: ResponsiveUtil.getGalleryInfoPanelTitleFontSize(
                         context,
                       ),
@@ -123,9 +182,10 @@ class ArtatlasGalleryPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
                   Text(
+                    /* ... About text ... */
                     'Museum has huge hall that leads to other sections with masterpieces. Left side of the hall have been attached to it in 1989.',
                     style: TextStyle(
-                      color: Colors.grey[300],
+                      color: overlayMutedTextColor,
                       fontSize: ResponsiveUtil.getGalleryInfoPanelFontSize(
                         context,
                       ),
@@ -134,9 +194,10 @@ class ArtatlasGalleryPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
+                    /* ... About text ... */
                     'Major events are took part in this hall, so the walls of it is full with different kind of art woks.',
                     style: TextStyle(
-                      color: Colors.grey[300],
+                      color: overlayMutedTextColor,
                       fontSize: ResponsiveUtil.getGalleryInfoPanelFontSize(
                         context,
                       ),
@@ -144,7 +205,13 @@ class ArtatlasGalleryPage extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 15),
-                  _buildAudioPlayerControls(context, galleryProvider),
+                  _buildAudioPlayerControls(
+                    context,
+                    galleryProvider,
+                    overlayIconColor,
+                    overlayTextColor,
+                    overlayMutedTextColor,
+                  ),
                 ],
               ),
             ),
@@ -155,31 +222,49 @@ class ArtatlasGalleryPage extends StatelessWidget {
 
     if (isMobile) {
       return Scaffold(
-        extendBodyBehindAppBar: true,
-        backgroundColor: Colors.black,
+        extendBodyBehindAppBar: true, // Crucial for transparent AppBar
+        backgroundColor: currentTheme.scaffoldBackgroundColor,
         appBar: AppBar(
           title: const Text('Gallery'),
           backgroundColor: Colors.transparent,
           elevation: 0,
           centerTitle: true,
-          titleTextStyle: const TextStyle(
-            color: Colors.white,
+          foregroundColor: overlayTextColor, // For back button color on image
+          titleTextStyle: TextStyle(
+            color: overlayTextColor, // Title text on image
             fontSize: 20,
             fontWeight: FontWeight.w500,
-            fontFamily: 'FuturaPT',
+            fontFamily: currentTheme.textTheme.titleLarge?.fontFamily,
           ),
         ),
-        body: galleryContent,
+        body: mediaContentStack, // The Stack with image and info panel
       );
     } else {
-      return Container(color: Colors.black, child: galleryContent);
+      // Desktop / Tablet
+      return Scaffold(
+        backgroundColor: currentTheme.scaffoldBackgroundColor,
+        body: Column(
+          children: [
+            _buildDesktopHeaderControls(context), // NEW: Header for desktop
+            Expanded(
+              child:
+                  mediaContentStack, // The Stack with image and info panel fills remaining space
+            ),
+          ],
+        ),
+      );
     }
   }
 
   Widget _buildAudioPlayerControls(
     BuildContext context,
     GalleryProvider provider,
+    Color iconColor,
+    Color textColor,
+    Color mutedTextColor,
   ) {
+    // ... (Audio player controls code remains the same as your last version)
+    // Ensure it uses the passed iconColor, textColor, mutedTextColor.
     final isMobile = ResponsiveUtil.isMobile(context);
     final iconSize = isMobile ? 28.0 : 36.0;
     final smallIconSize = isMobile ? 18.0 : 20.0;
@@ -196,12 +281,10 @@ class ArtatlasGalleryPage extends StatelessWidget {
                   IconButton(
                     icon: Icon(
                       Icons.skip_previous,
-                      color: Colors.white,
+                      color: iconColor,
                       size: smallIconSize + 4,
                     ),
-                    onPressed: () {
-                      provider.skipPrevious();
-                    },
+                    onPressed: () => provider.skipPrevious(),
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                   ),
@@ -211,7 +294,7 @@ class ArtatlasGalleryPage extends StatelessWidget {
                       provider.isPlaying
                           ? Icons.pause_circle_filled
                           : Icons.play_circle_filled,
-                      color: Colors.white,
+                      color: iconColor,
                       size: iconSize,
                     ),
                     onPressed: () => provider.togglePlayPause(),
@@ -222,12 +305,10 @@ class ArtatlasGalleryPage extends StatelessWidget {
                   IconButton(
                     icon: Icon(
                       Icons.skip_next,
-                      color: Colors.white,
+                      color: iconColor,
                       size: smallIconSize + 4,
                     ),
-                    onPressed: () {
-                      provider.skipNext();
-                    },
+                    onPressed: () => provider.skipNext(),
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                   ),
@@ -240,7 +321,7 @@ class ArtatlasGalleryPage extends StatelessWidget {
               child: Text(
                 '01:13/10:52', // TODO: Get from provider
                 style: TextStyle(
-                  color: Colors.white,
+                  color: textColor,
                   fontSize: isMobile ? 10 : 12,
                 ),
                 overflow: TextOverflow.ellipsis,
@@ -253,23 +334,23 @@ class ArtatlasGalleryPage extends StatelessWidget {
                 vertical: isMobile ? 2 : 4,
               ),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.1),
+                color: textColor.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(4),
               ),
               child: Text(
                 '1.3x', // TODO: Get playback speed from provider
                 style: TextStyle(
-                  color: Colors.white,
+                  color: textColor,
                   fontSize: isMobile ? 10 : 12,
                 ),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 0),
+        const SizedBox(height: 0), // Keep small or remove if no space needed
         Row(
           children: [
-            Icon(Icons.volume_up, color: Colors.white, size: smallIconSize),
+            Icon(Icons.volume_up, color: iconColor, size: smallIconSize),
             const SizedBox(width: 8),
             Expanded(
               child: SliderTheme(
@@ -281,9 +362,10 @@ class ArtatlasGalleryPage extends StatelessWidget {
                   overlayShape: RoundSliderOverlayShape(
                     overlayRadius: isMobile ? 10.0 : 12.0,
                   ),
-                  activeTrackColor: Colors.white,
-                  inactiveTrackColor: Colors.grey[700],
-                  thumbColor: Colors.white,
+                  activeTrackColor: iconColor,
+                  inactiveTrackColor: mutedTextColor.withOpacity(0.5),
+                  thumbColor: iconColor,
+                  overlayColor: iconColor.withOpacity(0.2),
                 ),
                 child: Slider(
                   value: provider.volume,

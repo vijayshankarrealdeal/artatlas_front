@@ -1,7 +1,12 @@
 // lib/pages/auth/auth_page.dart
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/cupertino.dart'; // For CupertinoIcons if used (like CupertinoIcons.lock_circle)
 import 'package:flutter/material.dart';
 import 'package:hack_front/providers/auth_provider.dart';
 import 'package:hack_front/providers/theme_provider.dart';
+import 'package:hack_front/routes/app_route_path.dart';
+import 'package:hack_front/routes/app_router_delegate.dart';
+
 import 'package:hack_front/utils/responsive_util.dart';
 import 'package:provider/provider.dart';
 
@@ -18,7 +23,6 @@ class AuthPage extends StatefulWidget {
 
 class _AuthPageState extends State<AuthPage>
     with SingleTickerProviderStateMixin {
-  // Add TickerProvider
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -30,15 +34,13 @@ class _AuthPageState extends State<AuthPage>
 
   final String backgroundImageUrlDark =
       'https://images.pexels.com/photos/3137078/pexels-photo-3137078.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2';
-
   final String backgroundImageUrlLight =
-      "https://images.pexels.com/photos/3778550/pexels-photo-3778550.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2";
+      "https://images.pexels.com/photos/297494/pexels-photo-297494.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2";
 
   @override
   void initState() {
     super.initState();
     _authMode = widget.initialAuthMode;
-
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 300),
@@ -46,54 +48,47 @@ class _AuthPageState extends State<AuthPage>
     _opacityAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
-    _animationController.forward(); // Initial fade in
+    _animationController.forward();
   }
 
   @override
   void didUpdateWidget(covariant AuthPage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.initialAuthMode != _authMode) {
-      // This handles when the route changes (e.g. browser back/forward to /login or /signup)
-      // and the AuthPage widget itself is rebuilt with a new initialAuthMode.
       _switchModeAndAnimate(widget.initialAuthMode);
     }
   }
 
   void _switchModeAndAnimate(AuthMode newMode) {
     if (_authMode == newMode) return;
-
     _animationController.reverse().then((_) {
-      setState(() {
-        _authMode = newMode;
-        _formKey.currentState?.reset();
-        _emailController.clear(); // Clear fields on mode switch
-        _passwordController.clear();
-        _confirmPasswordController.clear();
-        Provider.of<AuthProvider>(context, listen: false).clearErrorMessage();
-      });
-      _animationController.forward();
+      if (mounted) {
+        setState(() {
+          _authMode = newMode;
+          _formKey.currentState?.reset();
+          _emailController.clear();
+          _passwordController.clear();
+          _confirmPasswordController.clear();
+          Provider.of<AuthProvider>(context, listen: false).clearErrorMessage();
+        });
+        _animationController.forward();
+      }
     });
   }
 
   void _toggleAuthMode() {
-    // This is called by the button press within the AuthPage
     final newMode = _authMode == AuthMode.login
         ? AuthMode.signup
         : AuthMode.login;
-    _switchModeAndAnimate(newMode);
 
-    // OPTIONAL: If you still want the URL to update when the user *clicks the toggle button*,
-    // you would still need to inform the RouterDelegate here.
-    // final routerDelegate = Router.of(context).routerDelegate as AppRouterDelegate;
-    // if (newMode == AuthMode.signup) {
-    //   routerDelegate.updateCurrentAuthScreenPathIntent(const SignupPath());
-    // } else {
-    //   routerDelegate.updateCurrentAuthScreenPathIntent(const LoginPath());
-    // }
-    // For the smoothest internal UX, you might choose NOT to update the URL on internal toggle,
-    // and only rely on initial URL loading for the mode. This is a UX decision.
-    // If you *do* update the URL here, the didUpdateWidget logic will also fire,
-    // but _switchModeAndAnimate has a guard `if (_authMode == newMode) return;`
+    final routerDelegate =
+        Router.of(context).routerDelegate as AppRouterDelegate;
+    if (newMode == AuthMode.signup) {
+      routerDelegate.updateCurrentAuthScreenPathIntent(const SignupPath());
+    } else {
+      routerDelegate.updateCurrentAuthScreenPathIntent(const LoginPath());
+    }
+    _switchModeAndAnimate(newMode);
   }
 
   Future<void> _submitForm() async {
@@ -123,6 +118,61 @@ class _AuthPageState extends State<AuthPage>
   }
 
   Widget _buildActualForm(BuildContext context, AuthProvider authProvider) {
+    final ThemeData theme = Theme.of(context);
+    final Color onFormColor = theme.brightness == Brightness.dark
+        ? Colors.white
+        : Colors.black87;
+    final Color hintFormColor = theme.brightness == Brightness.dark
+        ? Colors.grey.shade400
+        : Colors.grey.shade600;
+    final Color prefixIconFormColor = theme.brightness == Brightness.dark
+        ? Colors.grey.shade400
+        : Colors.grey.shade600;
+
+    // Styling similar to Collection Page search bar
+    InputDecoration formFieldDecoration({
+      required String labelText,
+      required IconData prefixIconData,
+    }) {
+      return InputDecoration(
+        labelText: labelText,
+        labelStyle: TextStyle(
+          color: hintFormColor,
+          fontSize: 15,
+        ), // Adjusted label
+        hintText: labelText, // Use labelText as hintText as well
+        hintStyle: TextStyle(
+          color: hintFormColor.withOpacity(0.7),
+          fontSize: 15,
+        ),
+        prefixIcon: Padding(
+          padding: const EdgeInsets.only(left: 16.0, right: 10.0),
+          child: Icon(prefixIconData, color: prefixIconFormColor, size: 20),
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          vertical: 16.0,
+          horizontal: 20.0,
+        ), // Adjusted padding
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(25.0), // Rounded like search bar
+          borderSide: BorderSide(color: theme.dividerColor.withOpacity(0.7)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(25.0),
+          borderSide: BorderSide(color: theme.dividerColor.withOpacity(0.7)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(25.0),
+          borderSide: BorderSide(color: theme.colorScheme.primary, width: 1.5),
+        ),
+        // Ensure background of text field is transparent if form container has color
+        filled: true,
+        fillColor: theme.colorScheme.surface.withOpacity(
+          theme.brightness == Brightness.dark ? 0.1 : 0.5,
+        ),
+      );
+    }
+
     return Form(
       key: _formKey,
       child: Column(
@@ -131,25 +181,24 @@ class _AuthPageState extends State<AuthPage>
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           Text(
-            _authMode == AuthMode.login ? 'Art Atlas Login' : 'Create Account',
+            _authMode == AuthMode.login
+                ? 'Art Atlas'
+                : 'Create Account', // Title changed for login
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
+            style: theme.textTheme.displaySmall?.copyWith(
+              // Using displaySmall for less emphasis than displayLarge
+              fontWeight: FontWeight.w300, // Lighter font weight
+              color: onFormColor,
+              letterSpacing: 1.1,
             ),
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 40), // Increased spacing
           TextFormField(
-            // ... (same as before)
             controller: _emailController,
-            style: const TextStyle(color: Colors.white),
-            decoration: InputDecoration(
+            style: TextStyle(color: onFormColor, fontSize: 16),
+            decoration: formFieldDecoration(
               labelText: 'Email',
-              labelStyle: TextStyle(color: Colors.grey.shade300),
-              prefixIcon: Icon(
-                Icons.email_outlined,
-                color: Colors.grey.shade400,
-              ),
+              prefixIconData: Icons.email_outlined,
             ),
             keyboardType: TextInputType.emailAddress,
             validator: (value) {
@@ -159,15 +208,13 @@ class _AuthPageState extends State<AuthPage>
               return null;
             },
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20), // Adjusted spacing
           TextFormField(
-            // ... (same as before)
             controller: _passwordController,
-            style: const TextStyle(color: Colors.white),
-            decoration: InputDecoration(
+            style: TextStyle(color: onFormColor, fontSize: 16),
+            decoration: formFieldDecoration(
               labelText: 'Password',
-              labelStyle: TextStyle(color: Colors.grey.shade300),
-              prefixIcon: Icon(Icons.lock_outline, color: Colors.grey.shade400),
+              prefixIconData: Icons.lock_outline,
             ),
             obscureText: true,
             validator: (value) {
@@ -180,7 +227,6 @@ class _AuthPageState extends State<AuthPage>
               return null;
             },
           ),
-          // AnimatedSwitcher for the Confirm Password field
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 300),
             transitionBuilder: (Widget child, Animation<double> animation) {
@@ -195,26 +241,25 @@ class _AuthPageState extends State<AuthPage>
             },
             child: _authMode == AuthMode.signup
                 ? Column(
-                    // Wrap in column to give it a key for AnimatedSwitcher if needed
-                    key: const ValueKey('signup_confirm_password'),
+                    key: const ValueKey('confirm_password_field'),
                     children: [
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 20), // Adjusted spacing
                       TextFormField(
                         controller: _confirmPasswordController,
-                        style: const TextStyle(color: Colors.white),
-                        decoration: InputDecoration(
+                        style: TextStyle(color: onFormColor, fontSize: 16),
+                        decoration: formFieldDecoration(
                           labelText: 'Confirm Password',
-                          labelStyle: TextStyle(color: Colors.grey.shade300),
-                          prefixIcon: Icon(
-                            Icons.label_important,
-                            color: Colors.grey.shade400,
-                          ),
+                          prefixIconData: CupertinoIcons.lock_circle,
                         ),
                         obscureText: true,
                         validator: (value) {
-                          if (_authMode == AuthMode.signup &&
-                              value != _passwordController.text) {
-                            return 'Passwords do not match';
+                          if (_authMode == AuthMode.signup) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please confirm your password';
+                            }
+                            if (value != _passwordController.text) {
+                              return 'Passwords do not match';
+                            }
                           }
                           return null;
                         },
@@ -222,29 +267,44 @@ class _AuthPageState extends State<AuthPage>
                     ],
                   )
                 : const SizedBox.shrink(
-                    key: ValueKey('signup_empty_confirm'),
-                  ), // Empty space when not in signup
+                    key: ValueKey('no_confirm_password_field'),
+                  ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 30), // Adjusted spacing
           if (authProvider.status == AuthStatus.authenticating)
-            const Center(
+            Center(
               child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  theme.colorScheme.primary,
+                ),
               ),
             )
           else
             ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  vertical: 18,
+                ), // Taller button
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(
+                    25.0,
+                  ), // Rounded to match fields
+                ),
+              ),
               onPressed: _submitForm,
-              child: Text(_authMode == AuthMode.login ? 'Login' : 'Sign Up'),
+              child: Text(
+                _authMode == AuthMode.login ? 'Login' : 'Sign Up',
+                style: const TextStyle(fontSize: 16),
+              ),
             ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           if (authProvider.errorMessage != null &&
               authProvider.status != AuthStatus.authenticating)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8.0),
               child: Text(
                 authProvider.errorMessage!,
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
+                style: TextStyle(color: theme.colorScheme.error),
                 textAlign: TextAlign.center,
               ),
             ),
@@ -256,6 +316,10 @@ class _AuthPageState extends State<AuthPage>
               _authMode == AuthMode.login
                   ? "Don't have an account? Sign Up"
                   : 'Already have an account? Login',
+              style: TextStyle(
+                fontSize: 14,
+                color: theme.colorScheme.secondary,
+              ), // Ensure themed color
             ),
           ),
         ],
@@ -266,36 +330,46 @@ class _AuthPageState extends State<AuthPage>
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
+    final themeProvider = Provider.of<ThemeProvider>(context);
     final bool isLargeScreen = !ResponsiveUtil.isMobile(context);
+    final ThemeData currentTheme = Theme.of(context);
 
-    // No longer need the WidgetsBinding.instance.addPostFrameCallback here
-    // as didUpdateWidget handles external changes to initialAuthMode.
+    if (widget.initialAuthMode != _authMode &&
+        authProvider.status != AuthStatus.authenticating) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _switchModeAndAnimate(widget.initialAuthMode);
+        }
+      });
+    }
 
     Widget formUI = FadeTransition(
       opacity: _opacityAnimation,
       child: _buildActualForm(context, authProvider),
     );
 
+    final String currentBackgroundImageUrl = themeProvider.isDarkMode
+        ? backgroundImageUrlDark
+        : backgroundImageUrlLight; // Keep distinct background for light/dark if needed
+
     if (isLargeScreen) {
       return Scaffold(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         body: Row(
           children: [
             Expanded(
               flex: 2,
               child: SizedBox(
                 height: double.infinity,
-                child: Image.network(
-                  Provider.of<ThemeProvider>(context).isDarkMode
-                      ? backgroundImageUrlDark
-                      : backgroundImageUrlLight,
+                child: CachedNetworkImage(
+                  // For desktop, always use the "dark" mode style image, or make it configurable
+                  imageUrl: currentBackgroundImageUrl,
                   fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(color: Colors.grey.shade800);
-                  },
-                  loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) return child;
-                    return Center(/* ... loading ... */);
+                  errorWidget: (context, error, stackTrace) {
+                    return Container(
+                      color: currentTheme.brightness == Brightness.dark
+                          ? Colors.grey.shade800
+                          : Colors.grey.shade300,
+                    );
                   },
                 ),
               ),
@@ -303,7 +377,7 @@ class _AuthPageState extends State<AuthPage>
             Expanded(
               flex: 3,
               child: Container(
-                color: Theme.of(context).scaffoldBackgroundColor,
+                color: currentTheme.scaffoldBackgroundColor,
                 child: Center(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.symmetric(
@@ -312,7 +386,7 @@ class _AuthPageState extends State<AuthPage>
                     ),
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 400),
-                      child: formUI, // Use the animated form
+                      child: formUI,
                     ),
                   ),
                 ),
@@ -323,62 +397,64 @@ class _AuthPageState extends State<AuthPage>
       );
     } else {
       // Mobile layout
+      // Removed background image and gradient for mobile to match the reference light theme screenshot
+      // Color formContainerColor = themeProvider.isDarkMode
+      //     ? Colors.black.withOpacity(0.0) // Fully transparent if background is dark
+      //     : Colors.white.withOpacity(0.0); // Fully transparent if background is light
+
       return Scaffold(
+        backgroundColor:
+            currentTheme.scaffoldBackgroundColor, // Use theme background
         body: Stack(
+          // Stack is kept in case you want to re-add image/gradient later
           children: [
-            Positioned.fill(
-              /* ... background image ... */
-              child: Image.network(
-                Provider.of<ThemeProvider>(context).isDarkMode
-                    ? backgroundImageUrlDark
-                    : backgroundImageUrlLight,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(color: Colors.black);
-                },
-                loadingBuilder: (context, child, loadingProgress) {
-                  if (loadingProgress == null) return child;
-                  return const SizedBox.shrink();
-                },
-              ),
-            ),
-            Positioned.fill(
-              /* ... gradient overlay ... */
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      Colors.black.withOpacity(0.8),
-                      Colors.black.withOpacity(0.6),
-                      Colors.black.withOpacity(0.8),
-                    ],
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                  ),
-                ),
-              ),
-            ),
+            // Positioned.fill(
+            //   child: Image.network(
+            //     currentBackgroundImageUrl,
+            //     fit: BoxFit.cover,
+            //     errorBuilder: (context, error, stackTrace) {
+            //       return Container(color: currentTheme.scaffoldBackgroundColor);
+            //     },
+            //     loadingBuilder: (context, child, loadingProgress) {
+            //       if (loadingProgress == null) return child;
+            //       return const SizedBox.shrink();
+            //     },
+            //   ),
+            // ),
+            // Positioned.fill(
+            //   child: Container(
+            //     decoration: BoxDecoration(
+            //       gradient: LinearGradient( ... )
+            //     ),
+            //   ),
+            // ),
             Center(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24.0),
+                padding: const EdgeInsets.all(
+                  32.0,
+                ), // Increased padding for mobile form
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 400),
                   child: Container(
-                    padding: const EdgeInsets.all(24.0),
+                    padding: const EdgeInsets.all(
+                      24.0,
+                    ), // Keep padding for form elements
                     decoration: BoxDecoration(
-                      /* ... semi-transparent container ... */
-                      color: Colors.black.withOpacity(0.65),
-                      borderRadius: BorderRadius.circular(12.0),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.3),
-                          spreadRadius: 2,
-                          blurRadius: 10,
-                          offset: const Offset(0, 5),
-                        ),
-                      ],
+                      // color: formBackgroundColor, // No specific background for the form container itself
+                      borderRadius: BorderRadius.circular(
+                        12.0,
+                      ), // Keep if you want rounded form edges
+                      // No boxShadow if the container is transparent
+                      // boxShadow: [
+                      //   BoxShadow(
+                      //     color: Colors.black.withOpacity(0.15),
+                      //     spreadRadius: 1,
+                      //     blurRadius: 8,
+                      //     offset: const Offset(0, 3),
+                      //   ),
+                      // ],
                     ),
-                    child: formUI, // Use the animated form
+                    child: formUI,
                   ),
                 ),
               ),

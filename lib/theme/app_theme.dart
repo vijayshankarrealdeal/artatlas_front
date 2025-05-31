@@ -7,7 +7,7 @@ class AppTheme {
   static final ThemeData lightTheme = ThemeData(
     fontFamily: _fontFamily,
     brightness: Brightness.light,
-    scaffoldBackgroundColor: Colors.grey.shade100, // Light background
+    // scaffoldBackgroundColor: Colors.grey.shade100, // Light background
     colorScheme: ColorScheme.fromSeed(
       seedColor: Colors.blue, // Your primary seed color
       brightness: Brightness.light,
@@ -17,16 +17,16 @@ class AppTheme {
       onSecondary: Colors.white,
       error: Colors.red.shade700,
       onError: Colors.white,
-      background: Colors.grey.shade100, // Slightly off-white
-      onBackground: Colors.black87, // Dark text on light background
+      // background: Colors.grey.shade100, // Slightly off-white
+      // onBackground: Colors.black87, // Dark text on light background
       surface: Colors.white, // Card backgrounds, dialogs
       onSurface: Colors.black87,
     ),
-    appBarTheme: AppBarTheme(
-      backgroundColor: Colors.blue.shade700,
-      foregroundColor: Colors.white, // Icon and title color
-      elevation: 2.0,
-    ),
+    // appBarTheme: AppBarTheme(
+    //   backgroundColor: Colors.yellow.shade700, // Bright yellow for AppBar
+    //   foregroundColor: Colors.white, // Icon and title color
+    //   elevation: 2.0,
+    // ),
     textTheme: _buildTextTheme(
       ThemeData.light().textTheme,
       Colors.black87,
@@ -153,7 +153,7 @@ class AppTheme {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8.0),
-        borderSide: BorderSide(color: Colors.blue.shade400, width: 1.5),
+        borderSide: BorderSide(color: Colors.blue.shade400, width: 1.0),
       ),
       labelStyle: TextStyle(color: Colors.grey.shade400),
       hintStyle: TextStyle(color: Colors.grey.shade500),

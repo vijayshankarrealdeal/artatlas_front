@@ -2,91 +2,55 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:hack_front/providers/auth_provider.dart';
+// import 'package:hack_front/providers/auth_provider.dart'; // No longer directly used here
 import 'package:hack_front/providers/navigation_provider.dart';
-import 'package:hack_front/providers/theme_provider.dart';
-import 'package:hack_front/utils/responsive_util.dart';
+// import 'package:hack_front/providers/theme_provider.dart'; // No longer directly used here
+// import 'package:hack_front/utils/responsive_util.dart'; // Not used if _appBarNavLink is removed
 import 'package:provider/provider.dart';
 
 class AppShell extends StatelessWidget {
-  final Widget currentPage; // Declare currentPage as a final field
+  final Widget currentPage;
 
-  // Add Key? key and make currentPage a required named parameter
   const AppShell({super.key, required this.currentPage});
 
-  Future<bool> _onWillPop(BuildContext context) async {
+  Future<bool> _shouldPop(BuildContext context) async {
+    // This function determines if a pop should be allowed to proceed.
+    // It encapsulates the logic previously in _onWillPop.
     final navigationProvider = Provider.of<NavigationProvider>(
       context,
       listen: false,
     );
-    // On mobile, if not on the first tab, navigate back through tabs.
-    // Otherwise (on first tab or on web), allow the default pop behavior.
+
     if (!kIsWeb && navigationProvider.selectedIndex != 0) {
+      // On mobile, and not on the first tab: navigate back through tabs
       navigationProvider.onItemTapped(navigationProvider.selectedIndex - 1);
-      return false; // We handled the pop.
+      return false; // We handled it, so prevent the system/router from popping further.
     }
-    return true; // Allow default pop.
+    // On web, or on the first tab on mobile: allow the pop.
+    return true;
   }
 
   @override
   Widget build(BuildContext context) {
     final navigationProvider = Provider.of<NavigationProvider>(context);
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    final isMobile = ResponsiveUtil.isMobile(context);
-    final bool isCurrentlyDark = themeProvider.isDarkMode;
+    final isMobile =
+        !kIsWeb &&
+        (MediaQuery.of(context).size.width < 650); // Simplified mobile check
+
+    // AppShell's AppBar is now effectively disabled for all main tabs on desktop
+    final bool isCollectionsPage = navigationProvider.selectedIndex == 2;
+    final bool isHomePage = navigationProvider.selectedIndex == 0;
+    final bool isGalleryPage = navigationProvider.selectedIndex == 1;
+    final bool showGenericAppBar =
+        !isMobile && !isCollectionsPage && !isHomePage && !isGalleryPage;
 
     Widget scaffoldContent = Scaffold(
-      appBar:
-          (isMobile ||
-              (kIsWeb &&
-                  ResponsiveUtil.isMobile(
-                    context,
-                  ))) // Simplified: Show AppBar for non-desktop like experiences
-          ? null
-          : AppBar(
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              title: Text(
-                navigationProvider.selectedIndex == 0
-                    ? 'Art Atlas - Home'
-                    : navigationProvider.selectedIndex == 1
-                    ? 'Gallery'
-                    : 'Collections',
-                style: Theme.of(
-                  context,
-                ).appBarTheme.titleTextStyle, // Use themed title style
-              ),
-              iconTheme: Theme.of(
-                context,
-              ).appBarTheme.iconTheme, // Use themed icon style
-              actions: [
-                IconButton(
-                  icon: Icon(
-                    isCurrentlyDark
-                        ? Icons.light_mode_outlined
-                        : Icons.dark_mode_outlined,
-                  ),
-                  tooltip: isCurrentlyDark
-                      ? 'Switch to Light Mode'
-                      : 'Switch to Dark Mode',
-                  onPressed: () {
-                    themeProvider.toggleTheme();
-                  },
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(right: 12.0),
-                  child: IconButton(
-                    icon: const Icon(Icons.logout),
-                    tooltip: 'Sign Out',
-                    onPressed: () async {
-                      await authProvider.signOut();
-                    },
-                  ),
-                ),
-              ],
-            ),
-      body: currentPage, // Use the currentPage field here
+      appBar: showGenericAppBar
+          ? AppBar(
+              title: const Text('Art Atlas'), // Generic title
+            )
+          : null,
+      body: currentPage,
       floatingActionButton: navigationProvider.selectedIndex == 1
           ? FloatingActionButton(
               onPressed: () {
@@ -121,36 +85,46 @@ class AppShell extends StatelessWidget {
           : null,
     );
 
-    // Replace WillPopScope with PopScope
-    if (!kIsWeb) {
-      return PopScope(
-        canPop: false, // We'll handle pop manually via onPopInvoked
-        onPopInvoked: (bool didPop) async {
-          if (didPop) {
-            // If system already popped (e.g. swipe gesture on iOS)
+    return PopScope(
+      // canPop determines if the current route can be popped.
+      // We make this dynamic based on our _shouldPop logic.
+      // However, onPopInvoked is called *before* canPop is re-evaluated for the actual pop.
+      // So, we'll use onPopInvoked to decide and then, if needed, programmatically pop.
+      canPop:
+          false, // Initially prevent direct system pops, let onPopInvoked decide.
+      onPopInvoked: (bool didPop) async {
+        if (didPop) {
+          // The pop happened for a reason outside of our control (e.g. iOS swipe, or nested navigator popped)
+          return;
+        }
+
+        final bool allowPop = await _shouldPop(context);
+
+        if (allowPop && context.mounted) {
+          // If _shouldPop returns true, it means we want the navigation stack to pop.
+          // This could be the browser history (web) or exiting the app (mobile, root route).
+          // We need to allow the pop to happen.
+          // For Router based navigation, we ask the RouterDelegate to handle it.
+          // Navigator.maybePop(context) is for imperative Navigator.
+          // Router.of(context).pop() is not a method.
+          // We should call Router.maybePop or let the system handle it if canPop was true.
+          // Since canPop is false, we need to explicitly tell the router to attempt a pop
+          // if our logic dictates it.
+          final router = Router.of(context);
+          if (await router.routerDelegate.popRoute()) {
+            // The router delegate handled the pop (e.g., went back in its own stack or browser history).
             return;
           }
-          final bool shouldPop = await _onWillPop(context);
-          if (shouldPop && context.mounted) {
-            // If _onWillPop allows it (e.g., on home tab), then really pop.
-            // For Android, this usually means exiting the app.
-            // Navigator.maybePop(context) could be used if there were nested routes in AppShell.
-            // For exiting, system handles it if canPop is true after this.
-            // To actually exit, you might need SystemNavigator.pop() but that's aggressive.
-            // Allowing the Navigator to pop when `canPop` becomes true is standard.
-            // Here, since we're at the top level, if _onWillPop returns true,
-            // we effectively let the system action proceed if this was a system back.
-            // If you need to ensure the app exits, you might need to control `canPop` more directly
-            // or handle it in RouterDelegate.popRoute.
-            // For now, if _onWillPop says true, we let the system handle it (which implies exit on Android if it's the root).
-            // If you want to programmatically pop the router's current page:
-            // Router.of(context).pop(); // This would call RouterDelegate.popRoute()
-          }
-        },
-        child: scaffoldContent,
-      );
-    } else {
-      return scaffoldContent;
-    }
+          // If routerDelegate.popRoute() returns false, it means it couldn't handle it.
+          // On mobile, if at the root, this might lead to app exit.
+          // On web, this might mean no more history in the Flutter app's part.
+          // If you truly want to exit the app on mobile in this scenario:
+          // if (!kIsWeb && mounted) { SystemNavigator.pop(); }
+        }
+        // If allowPop is false, _shouldPop already handled the navigation (e.g., changed tabs),
+        // so we do nothing more here, the pop is suppressed.
+      },
+      child: scaffoldContent,
+    );
   }
 }

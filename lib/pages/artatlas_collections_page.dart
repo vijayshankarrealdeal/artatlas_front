@@ -1,99 +1,116 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:hack_front/models/artwork_model.dart';
+import 'package:hack_front/providers/auth_provider.dart'; // For potential logout in settings
 import 'package:hack_front/providers/collections_provider.dart';
 import 'package:hack_front/providers/navigation_provider.dart';
+import 'package:hack_front/providers/theme_provider.dart';
 import 'package:hack_front/utils/responsive_util.dart';
 import 'package:provider/provider.dart';
 
 class ArtatlasCollectionsPage extends StatelessWidget {
   const ArtatlasCollectionsPage({super.key});
 
-  Widget _buildDesktopHeader(BuildContext context) {
-    final navFontSize = ResponsiveUtil.getHeaderNavFontSize(context);
-    final headerPadding = ResponsiveUtil.getBodyPadding(context);
-    final navigationProvider = Provider.of<NavigationProvider>(context, listen: false);
+  Widget _buildSettingsButton(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final bool isCurrentlyDark = themeProvider.isDarkMode;
+    final ThemeData theme = Theme.of(context);
 
-    void handleDesktopHeaderLinkTap(String routeName) {
-      int targetIndex = -1;
-      if (routeName == 'Home') targetIndex = 0;
-      if (routeName == 'Galleries') targetIndex = 1;
-      // "Collection" is the current page, no action or handled by provider if it were a different page.
+    return PopupMenuButton<String>(
+      icon: Icon(Icons.settings_outlined, color: theme.iconTheme.color),
+      tooltip: "Settings",
+      color: theme.cardColor, // Ensure popup menu background is themed
+      onSelected: (value) {
+        if (value == 'toggle_theme') {
+          themeProvider.toggleTheme();
+        }
+        if (value == 'logout') {
+          // Optional: Logout from here
+          final authProvider = Provider.of<AuthProvider>(
+            context,
+            listen: false,
+          );
+          authProvider.signOut();
+        }
+      },
+      itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+        PopupMenuItem<String>(
+          value: 'toggle_theme',
+          child: Row(
+            children: [
+              Icon(
+                isCurrentlyDark
+                    ? Icons.light_mode_outlined
+                    : Icons.dark_mode_outlined,
+                color: theme.iconTheme.color,
+              ),
+              const SizedBox(width: 12),
+              Text(
+                isCurrentlyDark
+                    ? 'Switch to Light Mode'
+                    : 'Switch to Dark Mode',
+                style: TextStyle(color: theme.textTheme.bodyMedium?.color),
+              ),
+            ],
+          ),
+        ),
+        // Optional Logout Item
+        const PopupMenuDivider(),
+        PopupMenuItem<String>(
+          value: 'logout',
+          child: Row(
+            children: [
+              Icon(
+                Icons.logout,
+                color: theme.iconTheme.color?.withOpacity(0.8),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Sign Out',
+                style: TextStyle(color: theme.textTheme.bodyMedium?.color),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 
-      if (targetIndex != -1) {
-        navigationProvider.onItemTapped(targetIndex);
-      }
-    }
-
-    Widget navLink(String text) {
-      bool isThisPageLink = text == "Collection";
-      int currentTabIndex = navigationProvider.selectedIndex;
-      bool isActive = (text == 'Home' && currentTabIndex == 0) ||
-                      (text == 'Galleries' && currentTabIndex == 1) ||
-                      (text == 'Collection' && currentTabIndex == 2);
-
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 15.0),
-        child: GestureDetector(
-          onTap: () => handleDesktopHeaderLinkTap(text),
+  Widget _buildSimpleNavLink(
+    String text,
+    int targetIndex,
+    BuildContext context,
+  ) {
+    final ThemeData theme = Theme.of(context);
+    final navigationProvider = Provider.of<NavigationProvider>(
+      context,
+      listen: false,
+    );
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12.0),
+      child: InkWell(
+        onTap: () => navigationProvider.onItemTapped(targetIndex),
+        borderRadius: BorderRadius.circular(4),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4.0),
           child: Text(
             text,
             style: TextStyle(
-              fontSize: navFontSize,
-              color: isActive
-                  ? Colors.blueAccent
-                  : Theme.of(context).brightness == Brightness.dark
-                      ? Colors.white70 // Adjusted for better visibility in dark theme
-                      : Colors.black87,
-              fontWeight: isActive ? FontWeight.w400 : FontWeight.w300,
+              fontSize: ResponsiveUtil.getHeaderNavFontSize(context) * 0.9,
+              color: theme.colorScheme.onBackground.withOpacity(0.7),
+              fontWeight: FontWeight.w400,
             ),
           ),
         ),
-      );
-    }
-
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: headerPadding, vertical: 30.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          const Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'ART',
-                style: TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.w100,
-                  letterSpacing: 1.5,
-                ),
-              ),
-              Text(
-                'ATLAS',
-                style: TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.w100,
-                  letterSpacing: 1.5,
-                ),
-              ),
-            ],
-          ),
-          Row(
-            children: [
-              navLink('Home'),
-              navLink('Galleries'),
-              navLink('Collection'),
-              const SizedBox(width: 20),
-            ],
-          ),
-        ],
       ),
     );
   }
 
   Widget _buildFilterDropdowns(
-      BuildContext context, CollectionsProvider provider) {
+    BuildContext context,
+    CollectionsProvider provider,
+  ) {
+    final ThemeData theme = Theme.of(context);
     final isMobile = ResponsiveUtil.isMobile(context);
 
     Widget filterDropdown({
@@ -102,22 +119,28 @@ class ArtatlasCollectionsPage extends StatelessWidget {
       required ValueChanged<String?> onChanged,
       required String hintText,
     }) {
-      Widget dropdown = Container(
+      return Container(
         margin: EdgeInsets.symmetric(
-          horizontal: isMobile ? 0 : 6.0,
+          horizontal: isMobile ? 0 : 4.0,
           vertical: isMobile ? 4.0 : 0,
         ),
         padding: const EdgeInsets.symmetric(horizontal: 12.0),
         decoration: BoxDecoration(
-          // Use Theme colors for border
-          border: Border.all(color: Theme.of(context).dividerColor),
+          color: theme.colorScheme.surface,
+          border: Border.all(color: theme.dividerColor),
           borderRadius: BorderRadius.circular(4.0),
         ),
         child: DropdownButtonHideUnderline(
           child: DropdownButton<String>(
             isExpanded: true,
             value: value,
-            hint: Text(hintText, style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
+            hint: Text(
+              hintText,
+              style: TextStyle(
+                fontSize: 13,
+                color: theme.hintColor.withOpacity(0.8),
+              ),
+            ),
             items: items
                 .map<DropdownMenuItem<String>>(
                   (String val) => DropdownMenuItem<String>(
@@ -126,23 +149,28 @@ class ArtatlasCollectionsPage extends StatelessWidget {
                       val,
                       style: TextStyle(
                         fontSize: 13,
-                        // Use Theme colors for text
-                        color: val == items.first && items.first.contains(":") // Heuristic for placeholder
-                            ? Theme.of(context).hintColor
-                            : Theme.of(context).textTheme.bodyLarge?.color,
+                        color:
+                            val == items.first &&
+                                (val.contains("Sort:") ||
+                                    val.contains("Date:") ||
+                                    val.contains(": All"))
+                            ? theme.hintColor
+                            : theme.textTheme.bodyLarge?.color,
                       ),
                     ),
                   ),
                 )
                 .toList(),
             onChanged: onChanged,
-            style: TextStyle(fontSize: 14, color: Theme.of(context).textTheme.bodyLarge?.color),
-            icon: Icon(Icons.keyboard_arrow_down, color: Theme.of(context).hintColor),
-            dropdownColor: Theme.of(context).cardColor,
+            style: TextStyle(
+              fontSize: 14,
+              color: theme.textTheme.bodyLarge?.color,
+            ),
+            icon: Icon(Icons.keyboard_arrow_down, color: theme.hintColor),
+            dropdownColor: theme.cardColor,
           ),
         ),
       );
-      return isMobile ? dropdown : Expanded(child: dropdown);
     }
 
     List<Widget> dropdownWidgets = [
@@ -150,31 +178,31 @@ class ArtatlasCollectionsPage extends StatelessWidget {
         value: provider.selectedSort,
         items: provider.sortOptions,
         onChanged: (val) => provider.updateSelectedSort(val),
-        hintText: "Sort by"
+        hintText: "Sort by",
       ),
       filterDropdown(
         value: provider.selectedDate,
         items: provider.dateOptions,
         onChanged: (val) => provider.updateSelectedDate(val),
-        hintText: "Date range"
+        hintText: "Date range",
       ),
       filterDropdown(
         value: provider.selectedClassification,
         items: provider.classificationOptions,
         onChanged: (val) => provider.updateSelectedClassification(val),
-        hintText: "Classification"
+        hintText: "Classification",
       ),
       filterDropdown(
         value: provider.selectedArtist,
         items: provider.artistOptions,
         onChanged: (val) => provider.updateSelectedArtist(val),
-        hintText: "Artist"
+        hintText: "Artist",
       ),
       filterDropdown(
         value: provider.selectedStyle,
         items: provider.styleOptions,
         onChanged: (val) => provider.updateSelectedStyle(val),
-        hintText: "Style"
+        hintText: "Style",
       ),
     ];
 
@@ -185,18 +213,35 @@ class ArtatlasCollectionsPage extends StatelessWidget {
         child: isMobile
             ? Column(
                 children: dropdownWidgets
-                    .map((w) => Padding(padding: const EdgeInsets.symmetric(vertical: 4.0), child: w))
-                    .toList())
+                    .map(
+                      (w) => Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4.0),
+                        child: w,
+                      ),
+                    )
+                    .toList(),
+              )
             : Row(
                 children: dropdownWidgets
-                    .map((w) => Expanded(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 4.0), child: w)))
-                    .toList()),
+                    .map(
+                      (w) => Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                          child: w,
+                        ),
+                      ),
+                    )
+                    .toList(),
+              ),
       ),
     );
   }
 
   Widget _buildActiveFilters(
-      BuildContext context, CollectionsProvider provider) {
+    BuildContext context,
+    CollectionsProvider provider,
+  ) {
+    final ThemeData theme = Theme.of(context);
     if (provider.activeFilterChips.isEmpty && !provider.filtersVisible) {
       return const SizedBox.shrink();
     }
@@ -209,9 +254,12 @@ class ArtatlasCollectionsPage extends StatelessWidget {
             if (provider.filtersVisible)
               TextButton(
                 onPressed: provider.clearAllFilters,
-                child: const Text(
+                child: Text(
                   'Clear All',
-                  style: TextStyle(color: Colors.blueAccent, fontSize: 13),
+                  style: TextStyle(
+                    color: theme.colorScheme.secondary,
+                    fontSize: 13,
+                  ),
                 ),
               ),
           ],
@@ -229,23 +277,11 @@ class ArtatlasCollectionsPage extends StatelessWidget {
               children: provider.activeFilterChips
                   .map(
                     (chipData) => Chip(
-                      label: Text(
-                        chipData['label']!,
-                        style: TextStyle(fontSize: 12, color: Theme.of(context).textTheme.bodySmall?.color),
-                      ),
+                      // Chip styling will come from AppTheme.chipTheme
+                      label: Text(chipData['label']!),
                       onDeleted: () => provider.removeFilterChip(
                         chipData['type']!,
                         chipData['label'],
-                      ),
-                      deleteIcon: Icon(Icons.close, size: 14, color: Theme.of(context).iconTheme.color?.withOpacity(0.7)),
-                      backgroundColor: Theme.of(context).chipTheme.backgroundColor,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6.0,
-                        vertical: 2.0,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(4.0),
-                        side: BorderSide.none,
                       ),
                     ),
                   )
@@ -255,9 +291,12 @@ class ArtatlasCollectionsPage extends StatelessWidget {
           if (provider.activeFilterChips.isNotEmpty)
             TextButton(
               onPressed: provider.clearAllFilters,
-              child: const Text(
+              child: Text(
                 'Clear All',
-                style: TextStyle(color: Colors.blueAccent, fontSize: 13),
+                style: TextStyle(
+                  color: theme.colorScheme.secondary,
+                  fontSize: 13,
+                ),
               ),
             ),
         ],
@@ -265,8 +304,8 @@ class ArtatlasCollectionsPage extends StatelessWidget {
     );
   }
 
-  Widget _buildArtworkGrid(
-      BuildContext context, CollectionsProvider provider) {
+  Widget _buildArtworkGrid(BuildContext context, CollectionsProvider provider) {
+    final ThemeData theme = Theme.of(context);
     final crossAxisCount = ResponsiveUtil.getCrossAxisCountForCollectionsGrid(
       context,
     );
@@ -276,10 +315,25 @@ class ArtatlasCollectionsPage extends StatelessWidget {
     const double spacing = 16.0;
 
     if (provider.isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation(theme.colorScheme.primary),
+        ),
+      );
     }
     if (provider.artworks.isEmpty && !provider.isLoading) {
-      return const Center(child: Text("No artworks found matching your criteria."));
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 40.0),
+          child: Text(
+            "No artworks found matching your criteria.",
+            style: TextStyle(
+              color: theme.colorScheme.onBackground.withOpacity(0.7),
+              fontSize: 16,
+            ),
+          ),
+        ),
+      );
     }
 
     return GridView.builder(
@@ -303,43 +357,44 @@ class ArtatlasCollectionsPage extends StatelessWidget {
                 clipBehavior: Clip.antiAlias,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(4),
+                  color: theme.colorScheme.surfaceVariant.withOpacity(
+                    0.3,
+                  ), // Slightly transparent bg
                 ),
-                child: Image.network(
-                  artwork.imageUrl,
+                child: CachedNetworkImage(
+                  imageUrl: artwork.imageUrl,
                   fit: BoxFit.cover,
                   width: double.infinity,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    color: Theme.of(context).colorScheme.surfaceVariant,
-                    child: const Center(child: Icon(Icons.broken_image)),
-                  ),
-                  loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) {
-                      return child;
-                    }
-                    return Center(
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.0,
-                        value: loadingProgress.expectedTotalBytes != null
-                            ? loadingProgress.cumulativeBytesLoaded /
-                                loadingProgress.expectedTotalBytes!
-                            : null,
+
+                  errorWidget: (context, error, stackTrace) => Container(
+                    color: theme.colorScheme.surfaceVariant,
+                    child: Center(
+                      child: Icon(
+                        Icons.broken_image,
+                        color: theme.colorScheme.onSurfaceVariant.withOpacity(
+                          0.7,
+                        ),
                       ),
-                    );
-                  },
+                    ),
+                  ),
                 ),
               ),
             ),
             const SizedBox(height: 8),
             Text(
               '${artwork.title} — ${artwork.year}',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Theme.of(context).textTheme.bodyLarge?.color),
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: theme.textTheme.bodyLarge?.color,
+              ),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: 4),
             Text(
               artwork.artist,
-              style: TextStyle(fontSize: 12, color: Theme.of(context).hintColor),
+              style: TextStyle(fontSize: 12, color: theme.hintColor),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -351,6 +406,7 @@ class ArtatlasCollectionsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
     final collectionsProvider = Provider.of<CollectionsProvider>(context);
     final isMobile = ResponsiveUtil.isMobile(context);
     final bodyPadding = ResponsiveUtil.getBodyPadding(context);
@@ -358,127 +414,183 @@ class ArtatlasCollectionsPage extends StatelessWidget {
         ? MediaQuery.of(context).size.width * 0.90
         : MediaQuery.of(context).size.width;
 
-    // Theme adjustments for TextField and Icons to work with dark/light themes
-    final hintColor = Theme.of(context).hintColor;
-    final iconColor = Theme.of(context).iconTheme.color;
-
-
     Widget searchBar = Padding(
-      padding: EdgeInsets.symmetric(
-        vertical: 10.0,
-        horizontal: isMobile ? 0 : 0, // No extra horizontal padding if already in bodyPadding
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.search, color: iconColor),
-          const SizedBox(width: 8),
-          Expanded(
-            child: TextField(
-              style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color),
-              decoration: InputDecoration.collapsed(
-                hintText: 'Search by painting, artists or keyword',
-                hintStyle: TextStyle(color: hintColor, fontSize: 14),
-              ),
-              onChanged: (query) {
-                // collectionsProvider.updateSearchQuery(query); // Implement in provider
-              },
+      padding: const EdgeInsets.symmetric(vertical: 16.0),
+      child: TextField(
+        style: TextStyle(color: theme.textTheme.bodyLarge?.color, fontSize: 16),
+        decoration: InputDecoration(
+          hintText: 'Search by painting, artists or keyword',
+          hintStyle: TextStyle(color: theme.hintColor, fontSize: 16),
+          prefixIcon: Padding(
+            padding: const EdgeInsets.only(left: 16.0, right: 10.0),
+            child: Icon(Icons.search, color: theme.iconTheme.color, size: 22),
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            vertical: 14.0,
+            horizontal: 20.0,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(25.0),
+            borderSide: BorderSide(color: theme.dividerColor.withOpacity(0.7)),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(25.0),
+            borderSide: BorderSide(color: theme.dividerColor.withOpacity(0.7)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(25.0),
+            borderSide: BorderSide(
+              color: theme.colorScheme.primary,
+              width: 1.5,
             ),
           ),
-        ],
+          // fillColor: theme.colorScheme.surface.withOpacity(0.5), // Optional fill
+          // filled: true,
+        ),
+        onChanged: (query) {
+          collectionsProvider.updateSearchQuery(query);
+        },
       ),
+    );
+
+    Widget filterAndSettingsControls = Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        TextButton.icon(
+          onPressed: collectionsProvider.toggleFiltersVisibility,
+          icon: Icon(
+            collectionsProvider.filtersVisible
+                ? Icons.filter_list_off_outlined
+                : Icons.filter_list,
+            color: theme.iconTheme.color,
+          ),
+          label: Text(
+            collectionsProvider.filtersVisible
+                ? 'Hide Filters'
+                : 'Show Filters',
+            style: TextStyle(
+              color: theme.textTheme.labelLarge?.color,
+              fontSize: 14,
+            ),
+          ),
+          style: TextButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+        ),
+        const SizedBox(width: 8),
+        _buildSettingsButton(context),
+      ],
     );
 
     Widget pageContent = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (!isMobile) _buildDesktopHeader(context),
         Padding(
-          padding: EdgeInsets.symmetric(horizontal: bodyPadding),
+          padding: EdgeInsets.fromLTRB(
+            bodyPadding,
+            isMobile ? 16.0 : 30.0,
+            bodyPadding,
+            isMobile ? 0 : 16.0,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (isMobile) const SizedBox(height: 16), // Top padding for mobile content
-              searchBar,
               if (!isMobile)
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton.icon(
-                    onPressed: collectionsProvider.toggleFiltersVisibility,
-                    icon: Icon(
-                      collectionsProvider.filtersVisible
-                          ? Icons.filter_list_off_outlined
-                          : Icons.filter_list,
-                      color: iconColor,
-                    ),
-                    label: Text(
-                      collectionsProvider.filtersVisible
-                          ? 'Hide Filters'
-                          : 'Show Filters',
-                      style: TextStyle(
-                        color: Theme.of(context).textTheme.labelLarge?.color,
-                        fontSize: 14,
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10.0),
+                      child: Text(
+                        "Collections",
+                        style: theme.textTheme.headlineMedium?.copyWith(
+                          fontWeight: FontWeight.w300,
+                        ),
                       ),
                     ),
-                    style: TextButton.styleFrom(
-                      padding: EdgeInsets.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildSimpleNavLink("Home", 0, context),
+                        _buildSimpleNavLink("Galleries", 1, context),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                          child: Text(
+                            "Collection",
+                            style: TextStyle(
+                              fontSize:
+                                  ResponsiveUtil.getHeaderNavFontSize(context) *
+                                  0.9,
+                              color: theme.colorScheme.primary,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
+                  ],
+                ),
+              searchBar,
+              if (!isMobile)
+                Padding(
+                  padding: const EdgeInsets.only(top: 0.0, bottom: 10.0),
+                  child: filterAndSettingsControls,
                 ),
               _buildFilterDropdowns(context, collectionsProvider),
               _buildActiveFilters(context, collectionsProvider),
-              Divider(height: 1, thickness: 1, color: Theme.of(context).dividerColor),
-              _buildArtworkGrid(context, collectionsProvider),
-              const SizedBox(height: 40), // Bottom padding
+              Divider(height: 1, thickness: 1, color: theme.dividerColor),
             ],
           ),
+        ),
+        // Artwork grid needs its own padding or to be outside the main Padding widget
+        // if its internal padding `const EdgeInsets.only(top: 20.0)` is sufficient.
+        // For now, let's assume the grid manages its own top padding and bodyPadding handles horizontal.
+        Padding(
+          padding: EdgeInsets.only(
+            left: bodyPadding,
+            right: bodyPadding,
+            bottom: 40.0,
+          ),
+          child: _buildArtworkGrid(context, collectionsProvider),
         ),
       ],
     );
 
     if (isMobile) {
       return Scaffold(
-        // Use theme for AppBar colors
         appBar: AppBar(
           title: const Text('Collections'),
-          centerTitle: false, // Typically false for Material Design on mobile
+          centerTitle: false,
           actions: [
             IconButton(
               icon: Icon(
                 collectionsProvider.filtersVisible
                     ? Icons.filter_list_off_outlined
                     : Icons.filter_list,
-                color: Theme.of(context).appBarTheme.actionsIconTheme?.color ?? Theme.of(context).iconTheme.color,
               ),
               onPressed: collectionsProvider.toggleFiltersVisibility,
               tooltip: collectionsProvider.filtersVisible
                   ? 'Hide Filters'
                   : 'Show Filters',
             ),
+            _buildSettingsButton(context),
           ],
         ),
         body: SingleChildScrollView(
-          child: Center( // Center the content if narrower than screen
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minHeight:
-                    MediaQuery.of(context).size.height -
-                    (AppBar().preferredSize.height +
-                        MediaQuery.of(context).padding.top +
-                        (isMobile ? kBottomNavigationBarHeight : 0)), // Account for nav bar
-                maxWidth: contentMaxWidth,
-              ),
-              child: pageContent,
-            ),
-          ),
+          child: pageContent, // pageContent already includes necessary padding
         ),
       );
     } else {
-      return SingleChildScrollView(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: contentMaxWidth),
-            child: pageContent,
+      return Scaffold(
+        backgroundColor: theme.scaffoldBackgroundColor,
+        body: SingleChildScrollView(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: contentMaxWidth),
+              child: pageContent,
+            ),
           ),
         ),
       );
