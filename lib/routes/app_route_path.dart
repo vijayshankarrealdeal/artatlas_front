@@ -15,6 +15,16 @@ class CollectionsPath extends AppRoutePath {
   const CollectionsPath();
 }
 
-class UnknownPath extends AppRoutePath { // For handling undefined routes
+// New Auth Paths
+class LoginPath extends AppRoutePath {
+  const LoginPath();
+}
+
+class SignupPath extends AppRoutePath {
+  const SignupPath();
+}
+
+
+class UnknownPath extends AppRoutePath {
   const UnknownPath();
 }

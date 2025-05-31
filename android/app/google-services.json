@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "731857392171",
+    "project_id": "artatlas-2c109",
+    "storage_bucket": "artatlas-2c109.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:731857392171:android:61f4595a5652966a23d06e",
+        "android_client_info": {
+          "package_name": "com.example.hack_front"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBJ3LwKjrzi9baV-DIBLO5dH8zvvsD9RrU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

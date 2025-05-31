@@ -1,37 +1,57 @@
-// lib/main.dart
-
-// lib/main.dart
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:hack_front/firebase_options.dart';
+import 'package:hack_front/providers/auth_provider.dart';
 import 'package:hack_front/providers/collections_provider.dart';
 import 'package:hack_front/providers/gallery_provider.dart';
 import 'package:hack_front/providers/navigation_provider.dart';
-import 'package:hack_front/routes/app_route_information_parser.dart'; // New import
-import 'package:hack_front/routes/app_router_delegate.dart'; // New import
+import 'package:hack_front/providers/theme_provider.dart'; // Import ThemeProvider
+import 'package:hack_front/routes/app_route_information_parser.dart';
+import 'package:hack_front/routes/app_router_delegate.dart';
+import 'package:hack_front/services/auth_service.dart';
+import 'package:hack_front/theme/app_theme.dart'; // Import AppTheme
 import 'package:provider/provider.dart';
-// AppShell is now built by the RouterDelegate, so direct import here might not be needed
-// import 'package:hack_front/app_shell.dart';
 
-void main() {
-  // For RouterDelegate to access NavigationProvider early, create it here
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  final authService = AuthService();
   final navigationProvider = NavigationProvider();
   final galleryProvider = GalleryProvider();
   final collectionsProvider = CollectionsProvider();
+  final authProvider = AuthProvider(authService);
+  final themeProvider = ThemeProvider(); // Create ThemeProvider instance
 
   runApp(
     MultiProvider(
       providers: [
+        Provider<AuthService>.value(value: authService),
+        ChangeNotifierProvider.value(value: authProvider),
         ChangeNotifierProvider.value(value: navigationProvider),
         ChangeNotifierProvider.value(value: galleryProvider),
         ChangeNotifierProvider.value(value: collectionsProvider),
+        ChangeNotifierProvider.value(
+          value: themeProvider,
+        ), // Provide ThemeProvider
       ],
-      child: MyApp(navigationProvider: navigationProvider), // Pass provider
+      child: MyApp(
+        navigationProvider: navigationProvider,
+        authProvider: authProvider,
+      ),
     ),
   );
 }
 
 class MyApp extends StatefulWidget {
   final NavigationProvider navigationProvider;
-  const MyApp({super.key, required this.navigationProvider});
+  final AuthProvider authProvider;
+
+  const MyApp({
+    super.key,
+    required this.navigationProvider,
+    required this.authProvider,
+  });
 
   @override
   State<MyApp> createState() => _MyAppState();
@@ -45,31 +65,25 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
-    _routerDelegate = AppRouterDelegate(widget.navigationProvider);
+    _routerDelegate = AppRouterDelegate(
+      widget.navigationProvider,
+      widget.authProvider,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    // Listen to ThemeProvider for theme changes
+    final themeProvider = Provider.of<ThemeProvider>(context);
+
     return MaterialApp.router(
       debugShowCheckedModeBanner: false,
       title: 'Art Atlas',
-
-      theme: ThemeData(
-        fontFamily: 'FuturaPT',
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.blue,
-          brightness: Brightness.light,
-          dynamicSchemeVariant: DynamicSchemeVariant.monochrome,
-          primary: Colors.blue,
-        ),
-        // textTheme: Theme.of(context).textTheme.apply(fontFamily: 'FuturaPT'),
-        // primaryTextTheme: Theme.of(
-        //   context,
-        // ).primaryTextTheme.apply(fontFamily: 'FuturaPT'),
-      ),
+      themeMode: themeProvider.themeMode, // Use themeMode from provider
+      theme: AppTheme.lightTheme, // Provide light theme
+      darkTheme: AppTheme.darkTheme, // Provide dark theme
       routerDelegate: _routerDelegate,
       routeInformationParser: _routeInformationParser,
-      // No 'home' property. The RouterDelegate builds the initial UI.
     );
   }
 }

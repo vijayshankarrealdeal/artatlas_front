@@ -1,3 +1,4 @@
+// lib/pages/artatlas_gallery_page.dart
 import 'package:flutter/material.dart';
 import 'package:hack_front/providers/gallery_provider.dart';
 import 'package:hack_front/utils/responsive_util.dart';
@@ -15,35 +16,30 @@ class ArtatlasGalleryPage extends StatelessWidget {
 
     final infoPanelWidth = ResponsiveUtil.getGalleryInfoPanelWidth(context);
     final appBarHeight = isMobile ? kToolbarHeight : 0;
-    final infoPanelTopPadding = isMobile
-        ? screenHeight * 0.60 - appBarHeight
-        : screenHeight * 0.20;
 
-    final infoPanelSidePadding = isMobile
-        ? (screenWidth - infoPanelWidth) / 2
-        : 30.0;
+    // Mobile: This defines the top of the "sheet-like" panel
+    final infoPanelTopPaddingMobile = screenHeight * 0.60 - appBarHeight;
+    // Desktop/Tablet: This will be padding from bottom and left
+    const double desktopEdgePadding = 30.0;
 
-    // Ensure assets are in pubspec.yaml and at these paths
-    // assets:
-    //  - assets/images/xx.png
-    //  - assets/images/night.png
     Widget galleryContent = Stack(
       children: [
         Positioned.fill(
           child: Image.asset(
             Theme.of(context).brightness == Brightness.light
-                ? 'assets/images/xx.png' // Make sure this image exists
-                : 'assets/images/night.png', // Make sure this image exists
+                ? 'assets/images/xx.png'
+                : 'assets/images/night.png',
             fit: BoxFit.cover,
             errorBuilder: (context, error, stackTrace) {
               return Container(
                 color: Colors.grey[800],
                 child: Center(
-                    child: Text(
-                  "Error loading background image. Check asset path.",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.white),
-                )),
+                  child: Text(
+                    "Error loading background image. Check asset path.",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
               );
             },
           ),
@@ -73,10 +69,27 @@ class ArtatlasGalleryPage extends StatelessWidget {
             ),
           ),
         Positioned(
-          top: infoPanelTopPadding + (isMobile ? appBarHeight : 0),
-          left: isMobile ? infoPanelSidePadding : null,
-          right: isMobile ? infoPanelSidePadding : 30.0,
-          width: isMobile ? null : infoPanelWidth,
+          // Mobile: Positioned from the top, centered horizontally.
+          top: isMobile ? infoPanelTopPaddingMobile : null,
+          left: isMobile
+              ? (screenWidth - infoPanelWidth) / 2
+              : (!isMobile ? desktopEdgePadding : null),
+
+          // Desktop/Tablet: Positioned from the bottom.
+          bottom: !isMobile ? desktopEdgePadding : null,
+
+          // Mobile: Centered horizontally.
+          // Desktop/Tablet: Not constrained from the right, width is set below.
+          right: isMobile ? (screenWidth - infoPanelWidth) / 2 : null,
+
+          // Width:
+          // For mobile, width is implicitly defined by left/right.
+          // For desktop/tablet, width is explicitly set.
+          width: !isMobile ? infoPanelWidth : null,
+
+          // Height:
+          // Mobile has a fixed proportional height.
+          // Desktop/Tablet height is intrinsic to content.
           height: isMobile
               ? screenHeight * 0.35 - (kBottomNavigationBarHeight / 2)
               : null,
@@ -89,7 +102,9 @@ class ArtatlasGalleryPage extends StatelessWidget {
                       topLeft: Radius.circular(15),
                       topRight: Radius.circular(15),
                     )
-                  : BorderRadius.circular(10),
+                  : BorderRadius.circular(
+                      10,
+                    ), // Standard rounded corners for desktop/tablet
             ),
             child: SingleChildScrollView(
               child: Column(
@@ -151,7 +166,7 @@ class ArtatlasGalleryPage extends StatelessWidget {
             color: Colors.white,
             fontSize: 20,
             fontWeight: FontWeight.w500,
-            fontFamily: 'FuturaPT', // Ensure font family is applied
+            fontFamily: 'FuturaPT',
           ),
         ),
         body: galleryContent,
@@ -162,7 +177,9 @@ class ArtatlasGalleryPage extends StatelessWidget {
   }
 
   Widget _buildAudioPlayerControls(
-      BuildContext context, GalleryProvider provider) {
+    BuildContext context,
+    GalleryProvider provider,
+  ) {
     final isMobile = ResponsiveUtil.isMobile(context);
     final iconSize = isMobile ? 28.0 : 36.0;
     final smallIconSize = isMobile ? 18.0 : 20.0;
@@ -183,7 +200,7 @@ class ArtatlasGalleryPage extends StatelessWidget {
                       size: smallIconSize + 4,
                     ),
                     onPressed: () {
-                      // TODO: Implement skip previous logic in provider
+                      provider.skipPrevious();
                     },
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
@@ -209,7 +226,7 @@ class ArtatlasGalleryPage extends StatelessWidget {
                       size: smallIconSize + 4,
                     ),
                     onPressed: () {
-                      // TODO: Implement skip next logic in provider
+                      provider.skipNext();
                     },
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),

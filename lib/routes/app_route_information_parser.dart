@@ -4,22 +4,32 @@ import 'app_route_path.dart';
 
 class AppRouteInformationParser extends RouteInformationParser<AppRoutePath> {
   @override
-  Future<AppRoutePath> parseRouteInformation(RouteInformation routeInformation) async {
-    final uri = routeInformation.uri; // Use routeInformation.uri
+  Future<AppRoutePath> parseRouteInformation(
+      RouteInformation routeInformation) async {
+    final uri = routeInformation.uri;
 
-    if (uri.pathSegments.isEmpty || uri.pathSegments.first == 'home') {
-      return const HomePath();
+    if (uri.pathSegments.isEmpty) {
+      // Default to login if root path could be ambiguous or based on auth state
+      // Or, could be HomePath if you want to attempt direct access and let delegate redirect.
+      // For now, let's make it LoginPath if unauthenticated is the app's "default" state.
+      return const LoginPath(); // Or HomePath() and let delegate handle redirection
     }
-    if (uri.pathSegments.length == 1) {
-      final firstSegment = uri.pathSegments.first;
-      if (firstSegment == 'gallery') {
+
+    final firstSegment = uri.pathSegments.first;
+    switch (firstSegment) {
+      case 'home':
+        return const HomePath();
+      case 'gallery':
         return const GalleryPath();
-      }
-      if (firstSegment == 'collections') {
+      case 'collections':
         return const CollectionsPath();
-      }
+      case 'login':
+        return const LoginPath();
+      case 'signup':
+        return const SignupPath();
+      default:
+        return const UnknownPath();
     }
-    return const UnknownPath(); // Default for unrecognized paths
   }
 
   @override
@@ -33,9 +43,15 @@ class AppRouteInformationParser extends RouteInformationParser<AppRoutePath> {
     if (configuration is CollectionsPath) {
       return RouteInformation(uri: Uri.parse('/collections'));
     }
-    // For UnknownPath, you might want to show a 404 URL or keep the current one.
-    // Returning null means the URL doesn't change from the app's perspective for this configuration.
-    // Or return a specific '/404' or similar.
-    return RouteInformation(uri: Uri.parse('/unknown'));
+    if (configuration is LoginPath) {
+      return RouteInformation(uri: Uri.parse('/login'));
+    }
+    if (configuration is SignupPath) {
+      return RouteInformation(uri: Uri.parse('/signup'));
+    }
+    if (configuration is UnknownPath) {
+      return RouteInformation(uri: Uri.parse('/unknown_route_page')); // Or redirect to /login or /home
+    }
+    return null; // Should not happen if all paths are covered
   }
 }

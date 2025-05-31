@@ -3,8 +3,8 @@ import 'package:hack_front/providers/navigation_provider.dart';
 import 'package:hack_front/utils/responsive_util.dart';
 import 'package:provider/provider.dart';
 
-class MuseumHomePage extends StatelessWidget {
-  const MuseumHomePage({super.key});
+class ArtatlasHomePage extends StatelessWidget {
+  const ArtatlasHomePage({super.key});
 
   final String imageUrl =
       'https://images.pexels.com/photos/297494/pexels-photo-297494.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2';
@@ -16,8 +16,10 @@ class MuseumHomePage extends StatelessWidget {
     if (routeName == 'Collection') targetIndex = 2;
 
     if (targetIndex != -1) {
-      Provider.of<NavigationProvider>(context, listen: false)
-          .onItemTapped(targetIndex);
+      Provider.of<NavigationProvider>(
+        context,
+        listen: false,
+      ).onItemTapped(targetIndex);
     }
   }
 
@@ -93,10 +95,14 @@ class MuseumHomePage extends StatelessWidget {
   }
 
   Widget _navLink(String text, BuildContext context, double fontSize) {
-    final currentTabIndex = Provider.of<NavigationProvider>(context, listen: false).selectedIndex;
-    bool isCurrentPage = (text == 'Home' && currentTabIndex == 0) ||
-                         (text == 'Galleries' && currentTabIndex == 1) ||
-                         (text == 'Collection' && currentTabIndex == 2);
+    final currentTabIndex = Provider.of<NavigationProvider>(
+      context,
+      listen: false,
+    ).selectedIndex;
+    bool isCurrentPage =
+        (text == 'Home' && currentTabIndex == 0) ||
+        (text == 'Galleries' && currentTabIndex == 1) ||
+        (text == 'Collection' && currentTabIndex == 2);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 15.0),
@@ -107,7 +113,9 @@ class MuseumHomePage extends StatelessWidget {
           style: TextStyle(
             fontSize: fontSize,
             fontWeight: isCurrentPage ? FontWeight.w400 : FontWeight.w200,
-            color: isCurrentPage ? Colors.blueAccent : null, // Highlight active tab
+            color: isCurrentPage
+                ? Colors.blueAccent
+                : null, // Highlight active tab
           ),
         ),
       ),
@@ -162,20 +170,22 @@ class MuseumHomePage extends StatelessWidget {
         imageUrl,
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) {
-          return Container( // Added container for consistent sizing on error
+          return Container(
+            // Added container for consistent sizing on error
             color: Colors.grey[800],
             child: const Center(child: Text('Image failed to load')),
           );
         },
         loadingBuilder: (context, child, loadingProgress) {
           if (loadingProgress == null) return child;
-          return Container( // Added container for consistent sizing during load
+          return Container(
+            // Added container for consistent sizing during load
             color: Colors.grey[850],
             child: Center(
               child: CircularProgressIndicator(
                 value: loadingProgress.expectedTotalBytes != null
                     ? loadingProgress.cumulativeBytesLoaded /
-                        loadingProgress.expectedTotalBytes!
+                          loadingProgress.expectedTotalBytes!
                     : null,
               ),
             ),
