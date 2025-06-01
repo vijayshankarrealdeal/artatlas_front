@@ -22,7 +22,6 @@ class _ArtatlasCollectionsPageState extends State<ArtatlasCollectionsPage> {
   @override
   void initState() {
     super.initState();
-    // Initial data fetch is handled by the provider's constructor.
     _scrollController.addListener(_onScroll);
   }
 
@@ -335,7 +334,8 @@ class _ArtatlasCollectionsPageState extends State<ArtatlasCollectionsPage> {
     );
   }
 
-  Widget _buildArtworkGridItself(
+  // This method now returns a Sliver type for use in CustomScrollView
+  Widget _buildArtworkGridSliver(
     BuildContext context,
     CollectionsProvider provider,
   ) {
@@ -346,7 +346,470 @@ class _ArtatlasCollectionsPageState extends State<ArtatlasCollectionsPage> {
     final childAspectRatio = ResponsiveUtil.getCollectionsGridAspectRatio(
       context,
     );
-    const double spacing = 8.0;
+    const double spacing = 16.0;
+    final bodyPadding = ResponsiveUtil.getBodyPadding(
+      context,
+    ); // Get bodyPadding
+
+    return SliverPadding(
+      padding: EdgeInsets.fromLTRB(
+        bodyPadding,
+        20.0,
+        bodyPadding,
+        20.0,
+      ), // Apply horizontal padding here
+      sliver: SliverGrid(
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: crossAxisCount,
+          crossAxisSpacing: spacing,
+          mainAxisSpacing: spacing,
+          childAspectRatio: childAspectRatio,
+        ),
+        delegate: SliverChildBuilderDelegate((BuildContext context, int index) {
+          final artwork = provider.artworks[index];
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Container(
+                  clipBehavior: Clip.antiAlias,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(4),
+                    color: theme.colorScheme.surfaceVariant.withAlpha(
+                      (0.3 * 255).round(),
+                    ),
+                  ),
+                  child:
+                      (artwork.imageUrl != null && artwork.imageUrl!.isNotEmpty)
+                      ? CachedNetworkImage(
+                          imageUrl: artwork.imageUrl!,
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          placeholder: (context, url) => Container(
+                            color: theme.colorScheme.surfaceVariant.withAlpha(
+                              (0.1 * 255).round(),
+                            ),
+                            child: Center(
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.0,
+                                valueColor: AlwaysStoppedAnimation(
+                                  theme.colorScheme.primary,
+                                ),
+                              ),
+                            ),
+                          ),
+                          errorWidget: (context, url, error) => Container(
+                            color: theme.colorScheme.surfaceVariant,
+                            child: Center(
+                              child: Icon(
+                                Icons.broken_image,
+                                color: theme.colorScheme.onSurfaceVariant
+                                    .withAlpha((0.7 * 255).round()),
+                              ),
+                            ),
+                          ),
+                        )
+                      : Container(
+                          color: theme.colorScheme.surfaceVariant,
+                          child: Center(
+                            child: Icon(
+                              Icons.image_not_supported_outlined,
+                              color: theme.colorScheme.onSurfaceVariant
+                                  .withAlpha((0.7 * 255).round()),
+                            ),
+                          ),
+                        ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '${artwork.artworkTitle ?? "Untitled"} — ${artwork.year ?? "N/A"}',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: theme.textTheme.bodyLarge?.color,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                artwork.artistName ?? "Unknown Artist",
+                style: TextStyle(fontSize: 12, color: theme.hintColor),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          );
+        }, childCount: provider.artworks.length),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    final collectionsProvider = Provider.of<CollectionsProvider>(context);
+    final isMobile = ResponsiveUtil.isMobile(context);
+    final bodyPadding = ResponsiveUtil.getBodyPadding(context);
+    double contentMaxWidth = ResponsiveUtil.isDesktop(context)
+        ? MediaQuery.of(context).size.width * 0.90
+        : MediaQuery.of(context).size.width;
+
+    Widget searchBar = Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: isMobile
+            ? 0
+            : 0, // Horizontal padding handled by parent on mobile
+        vertical: 16.0,
+      ),
+      child: TextField(
+        style: TextStyle(color: theme.textTheme.bodyLarge?.color, fontSize: 16),
+        decoration: InputDecoration(
+          hintText: 'Search by painting, artists or keyword',
+          hintStyle: TextStyle(color: theme.hintColor, fontSize: 16),
+          prefixIcon: Padding(
+            padding: const EdgeInsets.only(left: 16.0, right: 10.0),
+            child: Icon(Icons.search, color: theme.iconTheme.color, size: 22),
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            vertical: 14.0,
+            horizontal: 20.0,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(25.0),
+            borderSide: BorderSide(
+              color: theme.dividerColor.withAlpha((0.7 * 255).round()),
+            ),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(25.0),
+            borderSide: BorderSide(
+              color: theme.dividerColor.withAlpha((0.7 * 255).round()),
+            ),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(25.0),
+            borderSide: BorderSide(
+              color: theme.colorScheme.primary,
+              width: 1.5,
+            ),
+          ),
+        ),
+        onChanged: (query) {
+          collectionsProvider.updateSearchQuery(query);
+        },
+      ),
+    );
+
+    Widget filterAndSettingsControlsDesktop = Row(
+      // Renamed for clarity
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        TextButton.icon(
+          onPressed: collectionsProvider.toggleFiltersVisibility,
+          icon: Icon(
+            collectionsProvider.filtersVisible
+                ? Icons.filter_list_off_outlined
+                : Icons.filter_list,
+            color: theme.iconTheme.color,
+          ),
+          label: Text(
+            collectionsProvider.filtersVisible
+                ? 'Hide Filters'
+                : 'Show Filters',
+            style: TextStyle(
+              color: theme.textTheme.labelLarge?.color,
+              fontSize: 14,
+            ),
+          ),
+          style: TextButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+        ),
+        const SizedBox(width: 8),
+        _buildSettingsButton(context),
+      ],
+    );
+
+    if (isMobile) {
+      // --- Mobile Layout with CustomScrollView ---
+      return Scaffold(
+        body: CustomScrollView(
+          controller: _scrollController,
+          slivers: <Widget>[
+            SliverAppBar(
+              title: const Text('Collections'),
+              pinned: true,
+              floating: true,
+              actions: [
+                IconButton(
+                  icon: Icon(
+                    collectionsProvider.filtersVisible
+                        ? Icons.filter_list_off_outlined
+                        : Icons.filter_list,
+                  ),
+                  onPressed: collectionsProvider.toggleFiltersVisibility,
+                  tooltip: collectionsProvider.filtersVisible
+                      ? 'Hide Filters'
+                      : 'Show Filters',
+                ),
+                _buildSettingsButton(context),
+              ],
+            ),
+            // Search bar and filters are part of the scrollable content on mobile
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: bodyPadding,
+                ), // Apply bodyPadding
+                child: searchBar,
+              ),
+            ),
+            if (collectionsProvider.filtersVisible)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: bodyPadding),
+                  child: _buildFilterDropdowns(context, collectionsProvider),
+                ),
+              ),
+            if (collectionsProvider.filtersVisible ||
+                collectionsProvider.activeFilterChips.isNotEmpty)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: bodyPadding),
+                  child: _buildActiveFilters(context, collectionsProvider),
+                ),
+              ),
+            if (collectionsProvider.filtersVisible ||
+                collectionsProvider.activeFilterChips.isNotEmpty)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: bodyPadding),
+                  child: Divider(
+                    height: 1,
+                    thickness: 1,
+                    color: theme.dividerColor,
+                  ),
+                ),
+              ),
+
+            // Main content based on loading/data state
+            if (collectionsProvider.isLoading &&
+                collectionsProvider.artworks.isEmpty)
+              const SliverFillRemaining(
+                child: Center(child: CircularProgressIndicator()),
+              ),
+            if (collectionsProvider.artworks.isEmpty &&
+                !collectionsProvider.isLoadingMore &&
+                !collectionsProvider.isLoading)
+              SliverFillRemaining(
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20.0),
+                    child: Text(
+                      collectionsProvider.errorMessage ?? "No artworks found.",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: collectionsProvider.errorMessage != null
+                            ? theme.colorScheme.error
+                            : theme.colorScheme.onBackground.withAlpha(
+                                (0.7 * 255).round(),
+                              ),
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                ),
+              )
+            else
+              _buildArtworkGridSliver(
+                context,
+                collectionsProvider,
+              ), // Use the SliverGrid version
+            // Loading more indicator or end of list message
+            if (collectionsProvider.isLoadingMore)
+              const SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+              ),
+            if (!collectionsProvider.hasMoreArtworks &&
+                collectionsProvider.artworks.isNotEmpty &&
+                !collectionsProvider.isLoadingMore)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Center(
+                    child: Text(
+                      "You've reached the end!",
+                      style: TextStyle(color: theme.hintColor),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      );
+    } else {
+      // --- Desktop/Tablet Layout (Column structure) ---
+      Widget topSectionDesktop = Padding(
+        padding: EdgeInsets.fromLTRB(bodyPadding, 30.0, bodyPadding, 0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10.0),
+                  child: Text(
+                    "Collections",
+                    style: theme.textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.w300,
+                    ),
+                  ),
+                ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildSimpleNavLink("Home", 0, context),
+                    _buildSimpleNavLink("Galleries", 1, context),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                      child: Text(
+                        "Collection",
+                        style: TextStyle(
+                          fontSize:
+                              ResponsiveUtil.getHeaderNavFontSize(context) *
+                              0.9,
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            searchBar, // searchBar does not need extra horizontal padding here
+            Padding(
+              padding: const EdgeInsets.only(top: 0.0, bottom: 10.0),
+              child: filterAndSettingsControlsDesktop, // Use the renamed widget
+            ),
+            _buildFilterDropdowns(context, collectionsProvider),
+            _buildActiveFilters(context, collectionsProvider),
+            Divider(height: 1, thickness: 1, color: theme.dividerColor),
+          ],
+        ),
+      );
+
+      Widget bodyContentDesktop;
+      if (collectionsProvider.isLoading &&
+          collectionsProvider.artworks.isEmpty) {
+        bodyContentDesktop = const Expanded(
+          child: Center(child: CircularProgressIndicator()),
+        );
+      } else if (collectionsProvider.artworks.isEmpty &&
+          !collectionsProvider.isLoadingMore &&
+          !collectionsProvider.isLoading) {
+        bodyContentDesktop = Expanded(
+          child: Center(
+            /* ... No artworks message ... */
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Text(
+                collectionsProvider.errorMessage ?? "No artworks found.",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: collectionsProvider.errorMessage != null
+                      ? theme.colorScheme.error
+                      : theme.colorScheme.onBackground.withAlpha(
+                          (0.7 * 255).round(),
+                        ),
+                  fontSize: 16,
+                ),
+              ),
+            ),
+          ),
+        );
+      } else {
+        bodyContentDesktop = Expanded(
+          child: ListView.builder(
+            controller: _scrollController,
+            padding: EdgeInsets.symmetric(
+              horizontal: bodyPadding,
+            ), // Padding for the list view itself
+            itemCount:
+                1 +
+                (collectionsProvider.isLoadingMore ||
+                        (!collectionsProvider.hasMoreArtworks &&
+                            collectionsProvider.artworks.isNotEmpty)
+                    ? 1
+                    : 0),
+            itemBuilder: (context, index) {
+              if (index == 0) {
+                // _buildArtworkGridItself for desktop still returns a regular Widget (GridView.builder)
+                // It should be adapted to return a non-sliver widget or we use the old _buildArtworkGrid
+                // For now, let's assume _buildArtworkGridItself is flexible or we use a dedicated one for non-slivers.
+                // Let's rename the sliver one to _buildArtworkSliverGrid and keep original _buildArtworkGrid for this path.
+                return _buildArtworkGridItselfNonSliver(
+                  context,
+                  collectionsProvider,
+                ); // Using a non-sliver version
+              } else {
+                if (collectionsProvider.isLoadingMore) {
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 20.0),
+                    child: Center(child: CircularProgressIndicator()),
+                  );
+                } else if (!collectionsProvider.hasMoreArtworks &&
+                    collectionsProvider.artworks.isNotEmpty) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 20.0),
+                    child: Center(
+                      child: Text(
+                        "You've reached the end!",
+                        style: TextStyle(color: theme.hintColor),
+                      ),
+                    ),
+                  );
+                }
+              }
+              return const SizedBox.shrink();
+            },
+          ),
+        );
+      }
+
+      return Scaffold(
+        backgroundColor: theme.scaffoldBackgroundColor,
+        body: Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: contentMaxWidth),
+            child: Column(children: [topSectionDesktop, bodyContentDesktop]),
+          ),
+        ),
+      );
+    }
+  }
+
+  // Keep the original _buildArtworkGrid for non-sliver contexts (Desktop/Tablet)
+  Widget _buildArtworkGridItselfNonSliver(
+    BuildContext context,
+    CollectionsProvider provider,
+  ) {
+    final ThemeData theme = Theme.of(context);
+    final crossAxisCount = ResponsiveUtil.getCrossAxisCountForCollectionsGrid(
+      context,
+    );
+    final childAspectRatio = ResponsiveUtil.getCollectionsGridAspectRatio(
+      context,
+    );
+    const double spacing = 16.0;
 
     return GridView.builder(
       padding: const EdgeInsets.only(top: 20.0, bottom: 20.0),
@@ -362,6 +825,7 @@ class _ArtatlasCollectionsPageState extends State<ArtatlasCollectionsPage> {
       itemBuilder: (context, index) {
         final artwork = provider.artworks[index];
         return Column(
+          /* ... Same item Column as in _buildArtworkGridSliver ... */
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
@@ -438,257 +902,5 @@ class _ArtatlasCollectionsPageState extends State<ArtatlasCollectionsPage> {
         );
       },
     );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
-    final collectionsProvider = Provider.of<CollectionsProvider>(context);
-    final isMobile = ResponsiveUtil.isMobile(context);
-    final bodyPadding = ResponsiveUtil.getBodyPadding(context);
-    double contentMaxWidth = ResponsiveUtil.isDesktop(context)
-        ? MediaQuery.of(context).size.width * 0.90
-        : MediaQuery.of(context).size.width;
-
-    Widget searchBar = Padding(
-      padding: const EdgeInsets.symmetric(vertical: 16.0),
-      child: TextField(
-        style: TextStyle(color: theme.textTheme.bodyLarge?.color, fontSize: 16),
-        decoration: InputDecoration(
-          hintText: 'Search by painting, artists or keyword',
-          hintStyle: TextStyle(color: theme.hintColor, fontSize: 16),
-          prefixIcon: Padding(
-            padding: const EdgeInsets.only(left: 16.0, right: 10.0),
-            child: Icon(Icons.search, color: theme.iconTheme.color, size: 22),
-          ),
-          contentPadding: const EdgeInsets.symmetric(
-            vertical: 14.0,
-            horizontal: 20.0,
-          ),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(25.0),
-            borderSide: BorderSide(
-              color: theme.dividerColor.withAlpha((0.7 * 255).round()),
-            ),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(25.0),
-            borderSide: BorderSide(
-              color: theme.dividerColor.withAlpha((0.7 * 255).round()),
-            ),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(25.0),
-            borderSide: BorderSide(
-              color: theme.colorScheme.primary,
-              width: 1.5,
-            ),
-          ),
-        ),
-        onChanged: (query) {
-          collectionsProvider.updateSearchQuery(query);
-        },
-      ),
-    );
-
-    Widget filterAndSettingsControls = Row(
-      mainAxisAlignment: MainAxisAlignment.end,
-      children: [
-        TextButton.icon(
-          onPressed: collectionsProvider.toggleFiltersVisibility,
-          icon: Icon(
-            collectionsProvider.filtersVisible
-                ? Icons.filter_list_off_outlined
-                : Icons.filter_list,
-            color: theme.iconTheme.color,
-          ),
-          label: Text(
-            collectionsProvider.filtersVisible
-                ? 'Hide Filters'
-                : 'Show Filters',
-            style: TextStyle(
-              color: theme.textTheme.labelLarge?.color,
-              fontSize: 14,
-            ),
-          ),
-          style: TextButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          ),
-        ),
-        const SizedBox(width: 8),
-        _buildSettingsButton(context),
-      ],
-    );
-
-    Widget topSection = Padding(
-      padding: EdgeInsets.fromLTRB(
-        bodyPadding,
-        isMobile ? 16.0 : 30.0,
-        bodyPadding,
-        0,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (!isMobile)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 10.0),
-                  child: Text(
-                    "Collections",
-                    style: theme.textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.w300,
-                    ),
-                  ),
-                ),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _buildSimpleNavLink("Home", 0, context),
-                    _buildSimpleNavLink("Galleries", 1, context),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12.0),
-                      child: Text(
-                        "Collection",
-                        style: TextStyle(
-                          fontSize:
-                              ResponsiveUtil.getHeaderNavFontSize(context) *
-                              0.9,
-                          color: theme.colorScheme.primary,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          searchBar,
-          if (!isMobile)
-            Padding(
-              padding: const EdgeInsets.only(top: 0.0, bottom: 10.0),
-              child: filterAndSettingsControls,
-            ),
-          _buildFilterDropdowns(context, collectionsProvider),
-          _buildActiveFilters(context, collectionsProvider),
-          Divider(height: 1, thickness: 1, color: theme.dividerColor),
-        ],
-      ),
-    );
-
-    Widget bodyContent;
-    if (collectionsProvider.isLoading && collectionsProvider.artworks.isEmpty) {
-      bodyContent = const Center(child: CircularProgressIndicator());
-    } else if (collectionsProvider.artworks.isEmpty &&
-        !collectionsProvider.isLoadingMore &&
-        !collectionsProvider.isLoading) {
-      bodyContent = Center(
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Text(
-            collectionsProvider.errorMessage ??
-                "No artworks found matching your criteria.",
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: collectionsProvider.errorMessage != null
-                  ? theme.colorScheme.error
-                  : theme.colorScheme.onBackground.withAlpha(
-                      (0.7 * 255).round(),
-                    ),
-              fontSize: 16,
-            ),
-          ),
-        ),
-      );
-    } else {
-      bodyContent = ListView.builder(
-        controller: _scrollController,
-        padding: EdgeInsets.symmetric(
-          horizontal: bodyPadding,
-          vertical: 0,
-        ), // Apply horizontal bodyPadding
-        itemCount:
-            1 +
-            (collectionsProvider.isLoadingMore ||
-                    (!collectionsProvider.hasMoreArtworks &&
-                        collectionsProvider.artworks.isNotEmpty)
-                ? 1
-                : 0),
-        itemBuilder: (context, index) {
-          if (index == 0) {
-            // The grid itself does not need extra horizontal padding if its parent ListView has it.
-            return _buildArtworkGridItself(context, collectionsProvider);
-          } else {
-            // This is the item after the grid (index == 1)
-            if (collectionsProvider.isLoadingMore) {
-              return const Padding(
-                padding: EdgeInsets.symmetric(vertical: 20.0),
-                child: Center(child: CircularProgressIndicator()),
-              );
-            } else if (!collectionsProvider.hasMoreArtworks &&
-                collectionsProvider.artworks.isNotEmpty) {
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 20.0),
-                child: Center(
-                  child: Text(
-                    "You've reached the end!",
-                    style: TextStyle(color: theme.hintColor),
-                  ),
-                ),
-              );
-            }
-          }
-          return const SizedBox.shrink(); // Should ideally not be reached if itemCount logic is correct
-        },
-      );
-    }
-
-    if (isMobile) {
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('Collections'),
-          centerTitle: false,
-          actions: [
-            IconButton(
-              icon: Icon(
-                collectionsProvider.filtersVisible
-                    ? Icons.filter_list_off_outlined
-                    : Icons.filter_list,
-              ),
-              onPressed: collectionsProvider.toggleFiltersVisibility,
-              tooltip: collectionsProvider.filtersVisible
-                  ? 'Hide Filters'
-                  : 'Show Filters',
-            ),
-            _buildSettingsButton(context),
-          ],
-        ),
-        body: Column(
-          children: [
-            topSection,
-            Expanded(child: bodyContent),
-          ],
-        ),
-      );
-    } else {
-      return Scaffold(
-        backgroundColor: theme.scaffoldBackgroundColor,
-        body: Center(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: contentMaxWidth),
-            child: Column(
-              children: [
-                topSection,
-                Expanded(child: bodyContent),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
   }
 }

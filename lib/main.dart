@@ -16,13 +16,13 @@ import 'package:provider/provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   final authService = AuthService();
   final apiService = ApiService(); // Ensure this is created
-  final artworkRepository = ArtworkRepository(apiService); // Ensure this uses apiService
+  final artworkRepository = ArtworkRepository(
+    apiService,
+  ); // Ensure this uses apiService
 
   final navigationProvider = NavigationProvider();
   final galleryProvider = GalleryProvider(/* Pass dependencies if needed */);
@@ -34,7 +34,9 @@ void main() async {
     MultiProvider(
       providers: [
         Provider<AuthService>.value(value: authService),
-        Provider<ApiService>.value(value: apiService), // Make sure ApiService is provided
+        Provider<ApiService>.value(
+          value: apiService,
+        ), // Make sure ApiService is provided
         Provider<ArtworkRepository>.value(value: artworkRepository), // CRITICAL
 
         ChangeNotifierProvider.value(value: authProvider),
