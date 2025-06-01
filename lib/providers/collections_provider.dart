@@ -1,7 +1,13 @@
+// lib/providers/collections_provider.dart
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:hack_front/models/artwork_model.dart';
+import 'package:hack_front/repositories/artwork_repository.dart';
 
 class CollectionsProvider with ChangeNotifier {
+  final ArtworkRepository _artworkRepository;
+
+  // --- Filter States ---
   bool _filtersVisible = false;
   bool get filtersVisible => _filtersVisible;
 
@@ -23,6 +29,7 @@ class CollectionsProvider with ChangeNotifier {
   List<Map<String, String?>> _activeFilterChips = [];
   List<Map<String, String?>> get activeFilterChips => _activeFilterChips;
 
+  // --- Filter Options (Ensure these are populated with meaningful defaults or loaded) ---
   final List<String> sortOptions = [
     'Sort: By Relevance',
     'Sort: By Date (Newest)',
@@ -45,54 +52,160 @@ class CollectionsProvider with ChangeNotifier {
     'Print',
   ];
   final List<String> artistOptions = [
+    // Populate with actual artist names or load dynamically
     'Artists: All',
-    'Vincent van Gogh (Style)',
+    'Childe Hassam',
     'Georges Seurat',
+    'Vincent van Gogh (Style)', // Keep if you have styled data
     'Grant Wood (Style)',
     'Edward Hopper (Style)',
     'Raphael',
-    'Leonardo da Vinci (Style)',
-    'Unknown Modernist',
-    'Claude Monet (Style)',
   ];
   final List<String> styleOptions = [
+    // Populate with actual styles
     'Styles: All',
     'Impressionism',
     'Post-Impressionism',
-    'Renaissance',
-    'Modernism',
-    'Realism',
-    // 'Cubism', // Not in sample data
-    // 'Surrealism', // Not in sample data
+    'Pointillism',
+    'Regionalism',
+    'American Realism',
+    'High Renaissance',
   ];
 
-  List<Artwork> _allArtworks = [];
-  List<Artwork> _filteredArtworks = [];
-  List<Artwork> get artworks => _filteredArtworks;
+  // --- Data & Loading States ---
+  List<Artwork> _artworks = [];
+  List<Artwork> get artworks => _artworks;
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
-  String _searchQuery = '';
+  bool _isLoadingMore = false;
+  bool get isLoadingMore => _isLoadingMore;
 
-  CollectionsProvider() {
-    _selectedSort = sortOptions.first;
-    _selectedDate = dateOptions.first;
-    _selectedClassification = classificationOptions.first;
-    _selectedArtist = artistOptions.first;
-    _selectedStyle = styleOptions.first;
-    _loadArtworks();
+  bool _hasMoreArtworks = true;
+  bool get hasMoreArtworks => _hasMoreArtworks;
+
+  String? _errorMessage;
+  String? get errorMessage => _errorMessage;
+
+  // --- Search & Pagination ---
+  String _searchQuery = '';
+  String get searchQuery => _searchQuery; // Getter for UI if needed
+  Timer? _debounce;
+  final int _limit = 10; // Items per page
+  int _currentPage = 0;
+
+  CollectionsProvider(this._artworkRepository) {
+    // Initialize filters to default values
+    _selectedSort = sortOptions.firstWhere(
+      (opt) => opt.contains("Relevance"),
+      orElse: () => sortOptions.first,
+    );
+    _selectedDate = dateOptions.firstWhere(
+      (opt) => opt.contains("All"),
+      orElse: () => dateOptions.first,
+    );
+    _selectedClassification = classificationOptions.firstWhere(
+      (opt) => opt.contains("All"),
+      orElse: () => classificationOptions.first,
+    );
+    _selectedArtist = artistOptions.firstWhere(
+      (opt) => opt.contains("All"),
+      orElse: () => artistOptions.first,
+    );
+    _selectedStyle = styleOptions.firstWhere(
+      (opt) => opt.contains("All"),
+      orElse: () => styleOptions.first,
+    );
+
+    fetchArtworks(isNewSearchOrFilter: true); // Initial fetch
   }
 
-  Future<void> _loadArtworks() async {
-    _isLoading = true;
+  Future<void> fetchArtworks({bool isNewSearchOrFilter = false}) async {
+    if (isNewSearchOrFilter) {
+      _currentPage = 0;
+      _artworks = [];
+      _hasMoreArtworks = true;
+      _isLoading = true;
+    } else {
+      // Loading more
+      if (_isLoadingMore || !_hasMoreArtworks) return;
+      _isLoadingMore = true;
+    }
+    _errorMessage = null;
+    // Notify listeners at the beginning of the fetch operation, especially for isLoading state
     notifyListeners();
-    // Simulate API call
-    await Future.delayed(const Duration(milliseconds: 500));
-    _allArtworks = List.from(sampleArtworks); // Use a copy
-    _applyFilters();
-    _isLoading = false;
-    notifyListeners();
+
+    try {
+      final newArtworks = await _artworkRepository.getArtworks(
+        sortBy: _selectedSort,
+        dateRange: _selectedDate,
+        classification: _selectedClassification,
+        artist: _selectedArtist,
+        style: _selectedStyle,
+        searchQuery: _searchQuery, // Ensure _searchQuery is passed
+        limit: _limit,
+        skip: _currentPage * _limit,
+      );
+
+      if (isNewSearchOrFilter) {
+        // For a new search/filter, replace artworks
+        _artworks = newArtworks;
+      } else {
+        // For loading more, append
+        _artworks.addAll(newArtworks);
+      }
+
+      if (newArtworks.isEmpty || newArtworks.length < _limit) {
+        _hasMoreArtworks = false;
+      } else {
+        _hasMoreArtworks = true; // There might be more
+      }
+
+      if (newArtworks.isNotEmpty) {
+        // Only increment page if we got results
+        _currentPage++;
+      }
+    } catch (e) {
+      _errorMessage = e.toString();
+      if (kDebugMode)
+        print("CollectionsProvider: Error fetching artworks: $_errorMessage");
+      _hasMoreArtworks = false;
+      _artworks = [];
+    }
+
+    if (isNewSearchOrFilter)
+      _isLoading = false;
+    else
+      _isLoadingMore = false;
+
+    _updateActiveFilterChips();
+    notifyListeners(); // Notify listeners again after data is fetched and states are updated
+  }
+
+  void loadMoreArtworks() {
+    if (!_isLoading && !_isLoadingMore && _hasMoreArtworks) {
+      fetchArtworks(isNewSearchOrFilter: false);
+    }
+  }
+
+  void updateSearchQuery(String query) {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 500), () {
+      // Only fetch if the query has actually changed to avoid redundant calls
+      // especially if the user clears the search bar and it was already empty.
+      final newQuery = query.trim().toLowerCase();
+      if (_searchQuery != newQuery) {
+        _searchQuery = newQuery;
+        if (kDebugMode)
+          print("CollectionsProvider: Debounced search for '$_searchQuery'");
+        fetchArtworks(isNewSearchOrFilter: true);
+      } else if (newQuery.isEmpty && _searchQuery.isNotEmpty) {
+        // Handle case where search is cleared from a non-empty state
+        _searchQuery = '';
+        fetchArtworks(isNewSearchOrFilter: true);
+      }
+    });
   }
 
   void toggleFiltersVisibility() {
@@ -103,169 +216,134 @@ class CollectionsProvider with ChangeNotifier {
   void updateSelectedSort(String? value) {
     if (value == null || _selectedSort == value) return;
     _selectedSort = value;
-    _applyFilters();
+    fetchArtworks(isNewSearchOrFilter: true);
   }
 
   void updateSelectedDate(String? value) {
     if (value == null || _selectedDate == value) return;
     _selectedDate = value;
-    _applyFilters();
+    fetchArtworks(isNewSearchOrFilter: true);
   }
 
   void updateSelectedClassification(String? value) {
     if (value == null || _selectedClassification == value) return;
     _selectedClassification = value;
-    _applyFilters();
+    fetchArtworks(isNewSearchOrFilter: true);
   }
 
   void updateSelectedArtist(String? value) {
     if (value == null || _selectedArtist == value) return;
     _selectedArtist = value;
-    _applyFilters();
+    fetchArtworks(isNewSearchOrFilter: true);
   }
 
   void updateSelectedStyle(String? value) {
     if (value == null || _selectedStyle == value) return;
     _selectedStyle = value;
-    _applyFilters();
+    fetchArtworks(isNewSearchOrFilter: true);
   }
-
-  void updateSearchQuery(String query) {
-    _searchQuery = query.toLowerCase();
-    _applyFilters();
-  }
-
 
   void _updateActiveFilterChips() {
     _activeFilterChips.clear();
-    if (_selectedSort != null && _selectedSort != sortOptions.first) {
+    // Helper to check if a filter is active (not the default "All" or "Relevance" option)
+    bool isFilterActive(String? selectedValue, List<String> optionsList) {
+      if (selectedValue == null) return false;
+      // Assuming the first item in optionsList is the default/inactive state
+      return selectedValue !=
+          optionsList.firstWhere(
+            (opt) => opt.contains("All") || opt.contains("Relevance"),
+            orElse: () => optionsList.first,
+          );
+    }
+
+    if (isFilterActive(_selectedSort, sortOptions)) {
       _activeFilterChips.add({'type': 'sort', 'label': _selectedSort});
     }
-    if (_selectedDate != null && _selectedDate != dateOptions.first) {
+    if (isFilterActive(_selectedDate, dateOptions)) {
       _activeFilterChips.add({'type': 'date', 'label': _selectedDate});
     }
-    if (_selectedClassification != null &&
-        _selectedClassification != classificationOptions.first) {
+    if (isFilterActive(_selectedClassification, classificationOptions)) {
       _activeFilterChips.add({
         'type': 'classification',
         'label': _selectedClassification,
       });
     }
-    if (_selectedArtist != null && _selectedArtist != artistOptions.first) {
+    if (isFilterActive(_selectedArtist, artistOptions)) {
       _activeFilterChips.add({'type': 'artist', 'label': _selectedArtist});
     }
-    if (_selectedStyle != null && _selectedStyle != styleOptions.first) {
+    if (isFilterActive(_selectedStyle, styleOptions)) {
       _activeFilterChips.add({'type': 'style', 'label': _selectedStyle});
     }
-    // notifyListeners(); // Called by _applyFilters
+    // No notifyListeners() here; it's called by fetchArtworks which usually calls this.
   }
 
   void removeFilterChip(String type, String? label) {
     switch (type) {
       case 'sort':
-        _selectedSort = sortOptions.first;
+        _selectedSort = sortOptions.firstWhere(
+          (opt) => opt.contains("Relevance"),
+          orElse: () => sortOptions.first,
+        );
         break;
       case 'date':
-        _selectedDate = dateOptions.first;
+        _selectedDate = dateOptions.firstWhere(
+          (opt) => opt.contains("All"),
+          orElse: () => dateOptions.first,
+        );
         break;
       case 'classification':
-        _selectedClassification = classificationOptions.first;
+        _selectedClassification = classificationOptions.firstWhere(
+          (opt) => opt.contains("All"),
+          orElse: () => classificationOptions.first,
+        );
         break;
       case 'artist':
-        _selectedArtist = artistOptions.first;
+        _selectedArtist = artistOptions.firstWhere(
+          (opt) => opt.contains("All"),
+          orElse: () => artistOptions.first,
+        );
         break;
       case 'style':
-        _selectedStyle = styleOptions.first;
+        _selectedStyle = styleOptions.firstWhere(
+          (opt) => opt.contains("All"),
+          orElse: () => styleOptions.first,
+        );
         break;
     }
-    _applyFilters();
+    fetchArtworks(isNewSearchOrFilter: true);
   }
 
   void clearAllFilters() {
-    _selectedSort = sortOptions.first;
-    _selectedDate = dateOptions.first;
-    _selectedClassification = classificationOptions.first;
-    _selectedArtist = artistOptions.first;
-    _selectedStyle = styleOptions.first;
-    _searchQuery = ''; // Also clear search query
-    _applyFilters();
+    _selectedSort = sortOptions.firstWhere(
+      (opt) => opt.contains("Relevance"),
+      orElse: () => sortOptions.first,
+    );
+    _selectedDate = dateOptions.firstWhere(
+      (opt) => opt.contains("All"),
+      orElse: () => dateOptions.first,
+    );
+    _selectedClassification = classificationOptions.firstWhere(
+      (opt) => opt.contains("All"),
+      orElse: () => classificationOptions.first,
+    );
+    _selectedArtist = artistOptions.firstWhere(
+      (opt) => opt.contains("All"),
+      orElse: () => artistOptions.first,
+    );
+    _selectedStyle = styleOptions.firstWhere(
+      (opt) => opt.contains("All"),
+      orElse: () => styleOptions.first,
+    );
+    if (_searchQuery.isNotEmpty) {
+      // Only clear search if it was active
+      _searchQuery = '';
+    }
+    fetchArtworks(isNewSearchOrFilter: true);
   }
 
-  void _applyFilters() {
-    _isLoading = true; // Indicate filtering is in progress
-    notifyListeners();
-
-    List<Artwork> newlyFiltered = List.from(_allArtworks);
-
-    // Search Query Filter
-    if (_searchQuery.isNotEmpty) {
-      newlyFiltered = newlyFiltered.where((artwork) {
-        return artwork.title.toLowerCase().contains(_searchQuery) ||
-               artwork.artist.toLowerCase().contains(_searchQuery) ||
-               artwork.year.toLowerCase().contains(_searchQuery);
-      }).toList();
-    }
-
-    // Date Filter (example, needs proper parsing and comparison)
-    if (_selectedDate != null && _selectedDate != dateOptions.first) {
-      // This is a placeholder. Real date filtering requires parsing year strings.
-      // For example, if _selectedDate is "1900 - 1999"
-      // You'd parse artwork.year and check if it falls in that range.
-      // For simplicity, this example won't implement full date range logic.
-      if (_selectedDate == 'Date: 1900 - 1999') {
-         newlyFiltered = newlyFiltered.where((art) {
-           final year = int.tryParse(art.year.split('/').first.trim());
-           return year != null && year >= 1900 && year <= 1999;
-         }).toList();
-      }
-      // Add more conditions for other date ranges
-    }
-
-    // Classification Filter
-    if (_selectedClassification != null &&
-        _selectedClassification != classificationOptions.first) {
-      // Sample artworks don't have classification. This is a placeholder.
-      // Example: newlyFiltered = newlyFiltered.where((art) => art.classification == _selectedClassification).toList();
-    }
-
-    // Artist Filter
-    if (_selectedArtist != null && _selectedArtist != artistOptions.first) {
-      newlyFiltered = newlyFiltered.where((art) => art.artist == _selectedArtist).toList();
-    }
-
-    // Style Filter
-    if (_selectedStyle != null && _selectedStyle != styleOptions.first) {
-      // Sample artworks don't have explicit style. This is a placeholder.
-      // Example: newlyFiltered = newlyFiltered.where((art) => art.style == _selectedStyle).toList();
-       if (_selectedStyle == 'Impressionism' || _selectedStyle == 'Post-Impressionism') {
-         newlyFiltered = newlyFiltered.where((art) => art.artist.contains('Monet') || art.artist.contains('Seurat') || art.artist.contains('Gogh')).toList();
-       }
-    }
-    
-    // Sort Filter
-    if (_selectedSort != null && _selectedSort != sortOptions.first) {
-        if (_selectedSort == 'Sort: By Artist (A-Z)') {
-            newlyFiltered.sort((a, b) => a.artist.compareTo(b.artist));
-        } else if (_selectedSort == 'Sort: By Date (Newest)') {
-            newlyFiltered.sort((a, b) {
-                final yearA = int.tryParse(a.year.split('/').last.trim()) ?? 0;
-                final yearB = int.tryParse(b.year.split('/').last.trim()) ?? 0;
-                return yearB.compareTo(yearA);
-            });
-        } else if (_selectedSort == 'Sort: By Date (Oldest)') {
-             newlyFiltered.sort((a, b) {
-                final yearA = int.tryParse(a.year.split('/').first.trim()) ?? 9999;
-                final yearB = int.tryParse(b.year.split('/').first.trim()) ?? 9999;
-                return yearA.compareTo(yearB);
-            });
-        }
-        // Add other sort conditions
-    }
-
-
-    _filteredArtworks = newlyFiltered;
-    _updateActiveFilterChips();
-    _isLoading = false;
-    notifyListeners();
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    super.dispose();
   }
 }

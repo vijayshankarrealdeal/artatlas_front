@@ -361,7 +361,7 @@ class ArtatlasCollectionsPage extends StatelessWidget {
                   ), // Slightly transparent bg
                 ),
                 child: CachedNetworkImage(
-                  imageUrl: artwork.imageUrl,
+                  imageUrl: artwork.imageUrl!,
                   fit: BoxFit.cover,
                   width: double.infinity,
 
@@ -381,7 +381,7 @@ class ArtatlasCollectionsPage extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              '${artwork.title} — ${artwork.year}',
+              '${artwork.artworkTitle} — ${artwork.year}',
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
@@ -392,7 +392,7 @@ class ArtatlasCollectionsPage extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              artwork.artist,
+              artwork.artistName!,
               style: TextStyle(fontSize: 12, color: theme.hintColor),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,

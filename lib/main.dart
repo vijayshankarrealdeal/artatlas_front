@@ -6,34 +6,42 @@ import 'package:hack_front/providers/collections_provider.dart';
 import 'package:hack_front/providers/gallery_provider.dart';
 import 'package:hack_front/providers/navigation_provider.dart';
 import 'package:hack_front/providers/theme_provider.dart'; // Import ThemeProvider
+import 'package:hack_front/repositories/artwork_repository.dart';
 import 'package:hack_front/routes/app_route_information_parser.dart';
 import 'package:hack_front/routes/app_router_delegate.dart';
+import 'package:hack_front/services/api_service.dart';
 import 'package:hack_front/services/auth_service.dart';
 import 'package:hack_front/theme/app_theme.dart'; // Import AppTheme
 import 'package:provider/provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
 
   final authService = AuthService();
+  final apiService = ApiService(); // Ensure this is created
+  final artworkRepository = ArtworkRepository(apiService); // Ensure this uses apiService
+
   final navigationProvider = NavigationProvider();
-  final galleryProvider = GalleryProvider();
-  final collectionsProvider = CollectionsProvider();
+  final galleryProvider = GalleryProvider(/* Pass dependencies if needed */);
+  final collectionsProvider = CollectionsProvider(artworkRepository);
   final authProvider = AuthProvider(authService);
-  final themeProvider = ThemeProvider(); // Create ThemeProvider instance
+  final themeProvider = ThemeProvider();
 
   runApp(
     MultiProvider(
       providers: [
         Provider<AuthService>.value(value: authService),
+        Provider<ApiService>.value(value: apiService), // Make sure ApiService is provided
+        Provider<ArtworkRepository>.value(value: artworkRepository), // CRITICAL
+
         ChangeNotifierProvider.value(value: authProvider),
         ChangeNotifierProvider.value(value: navigationProvider),
         ChangeNotifierProvider.value(value: galleryProvider),
         ChangeNotifierProvider.value(value: collectionsProvider),
-        ChangeNotifierProvider.value(
-          value: themeProvider,
-        ), // Provide ThemeProvider
+        ChangeNotifierProvider.value(value: themeProvider),
       ],
       child: MyApp(
         navigationProvider: navigationProvider,

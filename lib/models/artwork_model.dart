@@ -1,77 +1,185 @@
 // lib/models/artwork_model.dart
 
-class Artwork {
-  final String imageUrl;
-  final String title;
-  final String year;
-  final String artist;
+// Class for the "historical_context" object
+class HistoricalContext {
+  final String? artistHistory;
+  final String? paintingHistory;
+  final String? historicalSignificance;
 
-  Artwork({
-    required this.imageUrl,
-    required this.title,
-    required this.year,
-    required this.artist,
+  HistoricalContext({
+    this.artistHistory,
+    this.paintingHistory,
+    this.historicalSignificance,
   });
+
+  factory HistoricalContext.fromJson(Map<String, dynamic> json) {
+    return HistoricalContext(
+      artistHistory: json['artist_history'] as String?,
+      paintingHistory: json['painting_history'] as String?,
+      historicalSignificance: json['historical_significance'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'artist_history': artistHistory,
+      'painting_history': paintingHistory,
+      'historical_significance': historicalSignificance,
+    }..removeWhere((key, value) => value == null);
+  }
 }
 
-// Sample data (can be in the same file or imported)
-final List<Artwork> sampleArtworks = [
-  Artwork(
-    imageUrl:
-        'https://images.pexels.com/photos/2832382/pexels-photo-2832382.jpeg?auto=compress&cs=tinysrgb&w=400&h=300&dpr=2',
-    title: 'A Sunday on La Grande Jatte',
-    year: '1884/86',
-    artist: 'Georges Seurat',
-  ),
-  Artwork(
-    // Using a generic Van Gogh style image as "The Bedroom" isn't directly available on Pexels with free license matching the style
-    imageUrl:
-        'https://images.pexels.com/photos/1269968/pexels-photo-1269968.jpeg?auto=compress&cs=tinysrgb&w=400&h=300&dpr=2',
-    title: 'The Starry Night (Inspired)', // Placeholder title
-    year: '1889',
-    artist: 'Vincent van Gogh (Style)',
-  ),
-  Artwork(
-    imageUrl:
-        'https://images.pexels.com/photos/2885578/pexels-photo-2885578.jpeg?auto=compress&cs=tinysrgb&w=400&h=300&dpr=2',
-    title: 'American Gothic (Inspired)', // Placeholder title
-    year: '1930',
-    artist: 'Grant Wood (Style)',
-  ),
-  Artwork(
-    // Using a generic Hopper style image
-    imageUrl:
-        'https://images.pexels.com/photos/753339/pexels-photo-753339.jpeg?auto=compress&cs=tinysrgb&w=400&h=300&dpr=2',
-    title: 'Nighthawks (Inspired)', // Placeholder title
-    year: '1942',
-    artist: 'Edward Hopper (Style)',
-  ),
-  Artwork(
-    imageUrl:
-        'https://images.pexels.com/photos/159862/art-school-of-athens-raphael-italian-painter-fresco-159862.jpeg?auto=compress&cs=tinysrgb&w=400&h=300&dpr=2',
-    title: 'The School of Athens',
-    year: '1509-1511',
-    artist: 'Raphael',
-  ),
-  Artwork(
-    imageUrl:
-        'https://images.pexels.com/photos/374710/pexels-photo-374710.jpeg?auto=compress&cs=tinysrgb&w=400&h=300&dpr=2',
-    title: 'Mona Lisa (Inspired)',
-    year: 'c. 1503-1506',
-    artist: 'Leonardo da Vinci (Style)',
-  ),
-  Artwork(
-    imageUrl:
-        'https://images.pexels.com/photos/102100/pexels-photo-102100.jpeg?auto=compress&cs=tinysrgb&w=400&h=300&dpr=2',
-    title: 'Abstract Forms',
-    year: '20th Century',
-    artist: 'Unknown Modernist',
-  ),
-  Artwork(
-    imageUrl:
-        'https://images.pexels.com/photos/1616403/pexels-photo-1616403.jpeg?auto=compress&cs=tinysrgb&w=400&h=300&dpr=2',
-    title: 'Impressionist Landscape',
-    year: 'c. 1874',
-    artist: 'Claude Monet (Style)',
-  ),
-];
+// Class for objects within the "tour_guide_explanation" list
+class TourGuideSection {
+  final String? section;
+  final String? text;
+
+  TourGuideSection({this.section, this.text});
+
+  factory TourGuideSection.fromJson(Map<String, dynamic> json) {
+    return TourGuideSection(
+      section: json['section'] as String?,
+      text: json['text'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {'section': section, 'text': text}
+      ..removeWhere((key, value) => value == null);
+  }
+}
+
+// Main Artwork class
+class Artwork {
+  final String id; // Corresponds to "artworks_id"
+  final String? mongoId; // Corresponds to "_id"
+  final String? artworkTitle;
+  final String? artistName;
+  final String? year;
+  final String? medium;
+  final String? dimensions;
+  final String? currentLocation;
+  final String? artworkUrl;
+  final String? imageUrl;
+  final String? detailsInImage;
+  final String? description;
+  final String? interpretation;
+  final String? mood;
+  final List<String>? keywords;
+  final HistoricalContext? historicalContext;
+  final String? artistBiography;
+  final List<TourGuideSection>? tourGuideExplanation;
+  final String? style;
+  final String? category;
+  final String? artistUrl;
+
+  Artwork({
+    required this.id,
+    this.mongoId,
+    this.artworkTitle,
+    this.artistName,
+    this.year,
+    this.medium,
+    this.dimensions,
+    this.currentLocation,
+    this.artworkUrl,
+    this.imageUrl,
+    this.detailsInImage,
+    this.description,
+    this.interpretation,
+    this.mood,
+    this.keywords,
+    this.historicalContext,
+    this.artistBiography,
+    this.tourGuideExplanation,
+    this.style,
+    this.category,
+    this.artistUrl,
+  });
+
+  factory Artwork.fromJson(Map<String, dynamic> json) {
+    // Helper to parse list of strings
+    List<String>? parseStringList(dynamic listData) {
+      if (listData is List) {
+        return listData.map((item) => item.toString()).toList();
+      }
+      return null;
+    }
+
+    // Helper to parse list of TourGuideSection
+    List<TourGuideSection>? parseTourGuideList(dynamic listData) {
+      if (listData is List) {
+        return listData
+            .map(
+              (item) => TourGuideSection.fromJson(item as Map<String, dynamic>),
+            )
+            .toList();
+      }
+      return null;
+    }
+
+    return Artwork(
+      id:
+          json['artworks_id'] as String? ??
+          'missing_artworks_id_${DateTime.now().millisecondsSinceEpoch}',
+      mongoId: json['_id'] as String?,
+      artworkTitle: json['artwork_title'] as String? ?? 'Untitled Artwork',
+      artistName: json['artist_name'] as String? ?? 'Unknown Artist',
+      year: json['year'] as String?,
+      medium: json['medium'] as String?,
+      dimensions: json['dimensions'] as String?,
+      currentLocation: json['current_location'] as String?,
+      artworkUrl: json['artwork_url'] as String?,
+      imageUrl:
+          json['image_url'] as String? ??
+          'https://via.placeholder.com/1260x750.png?text=No+Image+Available',
+      detailsInImage: json['details_in_image'] as String?,
+      description: json['description'] as String?,
+      interpretation: json['interpretation'] as String?,
+      mood: json['mood'] as String?,
+      keywords: parseStringList(json['keywords']),
+      historicalContext: json['historical_context'] != null
+          ? HistoricalContext.fromJson(
+              json['historical_context'] as Map<String, dynamic>,
+            )
+          : null,
+      artistBiography: json['artist_biography'] as String?,
+      tourGuideExplanation: parseTourGuideList(json['tour_guide_explanation']),
+      style: json['style'] as String?,
+      category: json['category'] as String?,
+      artistUrl: json['artist_url'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'artworks_id': id,
+      '_id': mongoId,
+      'artwork_title': artworkTitle,
+      'artist_name': artistName,
+      'year': year,
+      'medium': medium,
+      'dimensions': dimensions,
+      'current_location': currentLocation,
+      'artwork_url': artworkUrl,
+      'image_url': imageUrl,
+      'details_in_image': detailsInImage,
+      'description': description,
+      'interpretation': interpretation,
+      'mood': mood,
+      'keywords': keywords,
+      'historical_context': historicalContext?.toJson(),
+      'artist_biography': artistBiography,
+      'tour_guide_explanation': tourGuideExplanation
+          ?.map((e) => e.toJson())
+          .toList(),
+      'style': style,
+      'category': category,
+      'artist_url': artistUrl,
+    }..removeWhere(
+      (key, value) => value == null || (value is List && value.isEmpty),
+    );
+  }
+}
+
+final List<Artwork> sampleArtworks = [];
