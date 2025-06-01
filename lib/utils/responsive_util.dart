@@ -37,7 +37,7 @@ class ResponsiveUtil {
   }
 
   static double getBodyPadding(BuildContext context) {
-    if (isMobile(context)) return 16.0;
+    if (isMobile(context)) return 8.0;
     if (isTablet(context)) return 24.0;
     return 40.0;
   }

@@ -1,14 +1,47 @@
+// lib/pages/artatlas_collections_page.dart
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:hack_front/providers/auth_provider.dart'; // For potential logout in settings
+import 'package:hack_front/providers/auth_provider.dart';
 import 'package:hack_front/providers/collections_provider.dart';
 import 'package:hack_front/providers/navigation_provider.dart';
 import 'package:hack_front/providers/theme_provider.dart';
 import 'package:hack_front/utils/responsive_util.dart';
 import 'package:provider/provider.dart';
 
-class ArtatlasCollectionsPage extends StatelessWidget {
+class ArtatlasCollectionsPage extends StatefulWidget {
   const ArtatlasCollectionsPage({super.key});
+
+  @override
+  State<ArtatlasCollectionsPage> createState() =>
+      _ArtatlasCollectionsPageState();
+}
+
+class _ArtatlasCollectionsPageState extends State<ArtatlasCollectionsPage> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    // Initial data fetch is handled by the provider's constructor.
+    _scrollController.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    final provider = Provider.of<CollectionsProvider>(context, listen: false);
+    if (_scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 300 &&
+        !provider.isLoadingMore &&
+        provider.hasMoreArtworks) {
+      provider.loadMoreArtworks();
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   Widget _buildSettingsButton(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
@@ -18,13 +51,12 @@ class ArtatlasCollectionsPage extends StatelessWidget {
     return PopupMenuButton<String>(
       icon: Icon(Icons.settings_outlined, color: theme.iconTheme.color),
       tooltip: "Settings",
-      color: theme.cardColor, // Ensure popup menu background is themed
+      color: theme.cardColor,
       onSelected: (value) {
         if (value == 'toggle_theme') {
           themeProvider.toggleTheme();
         }
         if (value == 'logout') {
-          // Optional: Logout from here
           final authProvider = Provider.of<AuthProvider>(
             context,
             listen: false,
@@ -53,7 +85,6 @@ class ArtatlasCollectionsPage extends StatelessWidget {
             ],
           ),
         ),
-        // Optional Logout Item
         const PopupMenuDivider(),
         PopupMenuItem<String>(
           value: 'logout',
@@ -61,7 +92,7 @@ class ArtatlasCollectionsPage extends StatelessWidget {
             children: [
               Icon(
                 Icons.logout,
-                color: theme.iconTheme.color?.withOpacity(0.8),
+                color: theme.iconTheme.color?.withAlpha((0.8 * 255).round()),
               ),
               const SizedBox(width: 12),
               Text(
@@ -96,7 +127,9 @@ class ArtatlasCollectionsPage extends StatelessWidget {
             text,
             style: TextStyle(
               fontSize: ResponsiveUtil.getHeaderNavFontSize(context) * 0.9,
-              color: theme.colorScheme.onBackground.withOpacity(0.7),
+              color: theme.colorScheme.onBackground.withAlpha(
+                (0.7 * 255).round(),
+              ),
               fontWeight: FontWeight.w400,
             ),
           ),
@@ -137,7 +170,7 @@ class ArtatlasCollectionsPage extends StatelessWidget {
               hintText,
               style: TextStyle(
                 fontSize: 13,
-                color: theme.hintColor.withOpacity(0.8),
+                color: theme.hintColor.withAlpha((0.8 * 255).round()),
               ),
             ),
             items: items
@@ -276,7 +309,6 @@ class ArtatlasCollectionsPage extends StatelessWidget {
               children: provider.activeFilterChips
                   .map(
                     (chipData) => Chip(
-                      // Chip styling will come from AppTheme.chipTheme
                       label: Text(chipData['label']!),
                       onDeleted: () => provider.removeFilterChip(
                         chipData['type']!,
@@ -303,7 +335,10 @@ class ArtatlasCollectionsPage extends StatelessWidget {
     );
   }
 
-  Widget _buildArtworkGrid(BuildContext context, CollectionsProvider provider) {
+  Widget _buildArtworkGridItself(
+    BuildContext context,
+    CollectionsProvider provider,
+  ) {
     final ThemeData theme = Theme.of(context);
     final crossAxisCount = ResponsiveUtil.getCrossAxisCountForCollectionsGrid(
       context,
@@ -311,32 +346,10 @@ class ArtatlasCollectionsPage extends StatelessWidget {
     final childAspectRatio = ResponsiveUtil.getCollectionsGridAspectRatio(
       context,
     );
-    const double spacing = 16.0;
-
-    if (provider.isLoading) {
-      return Center(
-        child: CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation(theme.colorScheme.primary),
-        ),
-      );
-    }
-    if (provider.artworks.isEmpty && !provider.isLoading) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 40.0),
-          child: Text(
-            "No artworks found matching your criteria.",
-            style: TextStyle(
-              color: theme.colorScheme.onBackground.withOpacity(0.7),
-              fontSize: 16,
-            ),
-          ),
-        ),
-      );
-    }
+    const double spacing = 8.0;
 
     return GridView.builder(
-      padding: const EdgeInsets.only(top: 20.0),
+      padding: const EdgeInsets.only(top: 20.0, bottom: 20.0),
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -356,32 +369,56 @@ class ArtatlasCollectionsPage extends StatelessWidget {
                 clipBehavior: Clip.antiAlias,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(4),
-                  color: theme.colorScheme.surfaceVariant.withOpacity(
-                    0.3,
-                  ), // Slightly transparent bg
-                ),
-                child: CachedNetworkImage(
-                  imageUrl: artwork.imageUrl!,
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-
-                  errorWidget: (context, error, stackTrace) => Container(
-                    color: theme.colorScheme.surfaceVariant,
-                    child: Center(
-                      child: Icon(
-                        Icons.broken_image,
-                        color: theme.colorScheme.onSurfaceVariant.withOpacity(
-                          0.7,
-                        ),
-                      ),
-                    ),
+                  color: theme.colorScheme.surfaceVariant.withAlpha(
+                    (0.3 * 255).round(),
                   ),
                 ),
+                child:
+                    (artwork.imageUrl != null && artwork.imageUrl!.isNotEmpty)
+                    ? CachedNetworkImage(
+                        imageUrl: artwork.imageUrl!,
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        placeholder: (context, url) => Container(
+                          color: theme.colorScheme.surfaceVariant.withAlpha(
+                            (0.1 * 255).round(),
+                          ),
+                          child: Center(
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.0,
+                              valueColor: AlwaysStoppedAnimation(
+                                theme.colorScheme.primary,
+                              ),
+                            ),
+                          ),
+                        ),
+                        errorWidget: (context, url, error) => Container(
+                          color: theme.colorScheme.surfaceVariant,
+                          child: Center(
+                            child: Icon(
+                              Icons.broken_image,
+                              color: theme.colorScheme.onSurfaceVariant
+                                  .withAlpha((0.7 * 255).round()),
+                            ),
+                          ),
+                        ),
+                      )
+                    : Container(
+                        color: theme.colorScheme.surfaceVariant,
+                        child: Center(
+                          child: Icon(
+                            Icons.image_not_supported_outlined,
+                            color: theme.colorScheme.onSurfaceVariant.withAlpha(
+                              (0.7 * 255).round(),
+                            ),
+                          ),
+                        ),
+                      ),
               ),
             ),
             const SizedBox(height: 8),
             Text(
-              '${artwork.artworkTitle} — ${artwork.year}',
+              '${artwork.artworkTitle ?? "Untitled"} — ${artwork.year ?? "N/A"}',
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
@@ -392,7 +429,7 @@ class ArtatlasCollectionsPage extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              artwork.artistName!,
+              artwork.artistName ?? "Unknown Artist",
               style: TextStyle(fontSize: 12, color: theme.hintColor),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -430,11 +467,15 @@ class ArtatlasCollectionsPage extends StatelessWidget {
           ),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(25.0),
-            borderSide: BorderSide(color: theme.dividerColor.withOpacity(0.7)),
+            borderSide: BorderSide(
+              color: theme.dividerColor.withAlpha((0.7 * 255).round()),
+            ),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(25.0),
-            borderSide: BorderSide(color: theme.dividerColor.withOpacity(0.7)),
+            borderSide: BorderSide(
+              color: theme.dividerColor.withAlpha((0.7 * 255).round()),
+            ),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(25.0),
@@ -443,8 +484,6 @@ class ArtatlasCollectionsPage extends StatelessWidget {
               width: 1.5,
             ),
           ),
-          // fillColor: theme.colorScheme.surface.withOpacity(0.5), // Optional fill
-          // filled: true,
         ),
         onChanged: (query) {
           collectionsProvider.updateSearchQuery(query);
@@ -482,80 +521,131 @@ class ArtatlasCollectionsPage extends StatelessWidget {
       ],
     );
 
-    Widget pageContent = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: EdgeInsets.fromLTRB(
-            bodyPadding,
-            isMobile ? 16.0 : 30.0,
-            bodyPadding,
-            isMobile ? 0 : 16.0,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (!isMobile)
+    Widget topSection = Padding(
+      padding: EdgeInsets.fromLTRB(
+        bodyPadding,
+        isMobile ? 16.0 : 30.0,
+        bodyPadding,
+        0,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (!isMobile)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10.0),
+                  child: Text(
+                    "Collections",
+                    style: theme.textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.w300,
+                    ),
+                  ),
+                ),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
+                    _buildSimpleNavLink("Home", 0, context),
+                    _buildSimpleNavLink("Galleries", 1, context),
                     Padding(
-                      padding: const EdgeInsets.only(bottom: 10.0),
+                      padding: const EdgeInsets.symmetric(horizontal: 12.0),
                       child: Text(
-                        "Collections",
-                        style: theme.textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.w300,
+                        "Collection",
+                        style: TextStyle(
+                          fontSize:
+                              ResponsiveUtil.getHeaderNavFontSize(context) *
+                              0.9,
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _buildSimpleNavLink("Home", 0, context),
-                        _buildSimpleNavLink("Galleries", 1, context),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 12.0),
-                          child: Text(
-                            "Collection",
-                            style: TextStyle(
-                              fontSize:
-                                  ResponsiveUtil.getHeaderNavFontSize(context) *
-                                  0.9,
-                              color: theme.colorScheme.primary,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
                   ],
                 ),
-              searchBar,
-              if (!isMobile)
-                Padding(
-                  padding: const EdgeInsets.only(top: 0.0, bottom: 10.0),
-                  child: filterAndSettingsControls,
-                ),
-              _buildFilterDropdowns(context, collectionsProvider),
-              _buildActiveFilters(context, collectionsProvider),
-              Divider(height: 1, thickness: 1, color: theme.dividerColor),
-            ],
-          ),
-        ),
-        // Artwork grid needs its own padding or to be outside the main Padding widget
-        // if its internal padding `const EdgeInsets.only(top: 20.0)` is sufficient.
-        // For now, let's assume the grid manages its own top padding and bodyPadding handles horizontal.
-        Padding(
-          padding: EdgeInsets.only(
-            left: bodyPadding,
-            right: bodyPadding,
-            bottom: 40.0,
-          ),
-          child: _buildArtworkGrid(context, collectionsProvider),
-        ),
-      ],
+              ],
+            ),
+          searchBar,
+          if (!isMobile)
+            Padding(
+              padding: const EdgeInsets.only(top: 0.0, bottom: 10.0),
+              child: filterAndSettingsControls,
+            ),
+          _buildFilterDropdowns(context, collectionsProvider),
+          _buildActiveFilters(context, collectionsProvider),
+          Divider(height: 1, thickness: 1, color: theme.dividerColor),
+        ],
+      ),
     );
+
+    Widget bodyContent;
+    if (collectionsProvider.isLoading && collectionsProvider.artworks.isEmpty) {
+      bodyContent = const Center(child: CircularProgressIndicator());
+    } else if (collectionsProvider.artworks.isEmpty &&
+        !collectionsProvider.isLoadingMore &&
+        !collectionsProvider.isLoading) {
+      bodyContent = Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Text(
+            collectionsProvider.errorMessage ??
+                "No artworks found matching your criteria.",
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: collectionsProvider.errorMessage != null
+                  ? theme.colorScheme.error
+                  : theme.colorScheme.onBackground.withAlpha(
+                      (0.7 * 255).round(),
+                    ),
+              fontSize: 16,
+            ),
+          ),
+        ),
+      );
+    } else {
+      bodyContent = ListView.builder(
+        controller: _scrollController,
+        padding: EdgeInsets.symmetric(
+          horizontal: bodyPadding,
+          vertical: 0,
+        ), // Apply horizontal bodyPadding
+        itemCount:
+            1 +
+            (collectionsProvider.isLoadingMore ||
+                    (!collectionsProvider.hasMoreArtworks &&
+                        collectionsProvider.artworks.isNotEmpty)
+                ? 1
+                : 0),
+        itemBuilder: (context, index) {
+          if (index == 0) {
+            // The grid itself does not need extra horizontal padding if its parent ListView has it.
+            return _buildArtworkGridItself(context, collectionsProvider);
+          } else {
+            // This is the item after the grid (index == 1)
+            if (collectionsProvider.isLoadingMore) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 20.0),
+                child: Center(child: CircularProgressIndicator()),
+              );
+            } else if (!collectionsProvider.hasMoreArtworks &&
+                collectionsProvider.artworks.isNotEmpty) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 20.0),
+                child: Center(
+                  child: Text(
+                    "You've reached the end!",
+                    style: TextStyle(color: theme.hintColor),
+                  ),
+                ),
+              );
+            }
+          }
+          return const SizedBox.shrink(); // Should ideally not be reached if itemCount logic is correct
+        },
+      );
+    }
 
     if (isMobile) {
       return Scaffold(
@@ -577,18 +667,24 @@ class ArtatlasCollectionsPage extends StatelessWidget {
             _buildSettingsButton(context),
           ],
         ),
-        body: SingleChildScrollView(
-          child: pageContent, // pageContent already includes necessary padding
+        body: Column(
+          children: [
+            topSection,
+            Expanded(child: bodyContent),
+          ],
         ),
       );
     } else {
       return Scaffold(
         backgroundColor: theme.scaffoldBackgroundColor,
-        body: SingleChildScrollView(
-          child: Center(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: contentMaxWidth),
-              child: pageContent,
+        body: Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: contentMaxWidth),
+            child: Column(
+              children: [
+                topSection,
+                Expanded(child: bodyContent),
+              ],
             ),
           ),
         ),
