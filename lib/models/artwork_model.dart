@@ -1,6 +1,5 @@
 // lib/models/artwork_model.dart
 
-// Class for the "historical_context" object
 import 'package:hack_front/services/api_service.dart';
 
 class HistoricalContext {

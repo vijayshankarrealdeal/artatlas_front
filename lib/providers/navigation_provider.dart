@@ -1,3 +1,4 @@
+// lib/providers/navigation_provider.dart
 import 'package:flutter/foundation.dart';
 
 class NavigationProvider with ChangeNotifier {

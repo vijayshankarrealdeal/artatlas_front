@@ -1,3 +1,4 @@
+// lib/providers/gallery_provider.dart
 import 'package:flutter/foundation.dart';
 
 class GalleryProvider with ChangeNotifier {

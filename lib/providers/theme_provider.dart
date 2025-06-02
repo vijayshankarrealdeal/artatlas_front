@@ -1,3 +1,4 @@
+// lib/providers/theme_provider.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart'; // For system brightness
 import 'package:shared_preferences/shared_preferences.dart'; // Import shared_preferences
