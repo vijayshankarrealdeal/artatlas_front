@@ -15,7 +15,7 @@ class ApiException implements Exception {
 }
 
 class ApiService {
-  final String _baseUrl =
+  static String baseUrl =
       "http://127.0.0.1:8000"; // Or your appropriate IP for emulator/device
 
   Future<dynamic> get(
@@ -24,7 +24,7 @@ class ApiService {
   }) async {
     // Modified to accept queryParams directly
     final Uri url = Uri.parse(
-      '$_baseUrl/$endpoint',
+      '$baseUrl/$endpoint',
     ).replace(queryParameters: queryParams); // Use replace for queryParams
     if (kDebugMode) {
       print('ApiService GET: $url');
@@ -41,7 +41,7 @@ class ApiService {
       }
       if (e.toString().contains('Connection refused')) {
         throw ApiException(
-          'Failed to connect to the server. Is it running at $_baseUrl?',
+          'Failed to connect to the server. Is it running at $baseUrl?',
         );
       }
       throw ApiException('Network error while fetching $endpoint: $e');

@@ -1,6 +1,8 @@
 // lib/models/artwork_model.dart
 
 // Class for the "historical_context" object
+import 'package:hack_front/services/api_service.dart';
+
 class HistoricalContext {
   final String? artistHistory;
   final String? paintingHistory;
@@ -131,7 +133,8 @@ class Artwork {
       currentLocation: json['current_location'] as String?,
       artworkUrl: json['artwork_url'] as String?,
       imageUrl:
-          json['image_url'] as String? ??
+          "${ApiService.baseUrl}/proxy-image?url=${json['image_url']}"
+              as String? ??
           'https://via.placeholder.com/1260x750.png?text=No+Image+Available',
       detailsInImage: json['details_in_image'] as String?,
       description: json['description'] as String?,

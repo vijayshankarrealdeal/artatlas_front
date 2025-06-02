@@ -51,16 +51,7 @@ class AppShell extends StatelessWidget {
             )
           : null,
       body: currentPage,
-      floatingActionButton: navigationProvider.selectedIndex == 1
-          ? FloatingActionButton(
-              onPressed: () {
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(const SnackBar(content: Text('Search Tapped!')));
-              },
-              child: const Icon(CupertinoIcons.search),
-            )
-          : null,
+
       bottomNavigationBar: isMobile
           ? NavigationBar(
               labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
