@@ -123,16 +123,12 @@ class ApiService {
       return (responseData['items'] as List<dynamic>)
           .cast<Map<String, dynamic>>();
     }
-    // If your API for /collections *directly* returns a list:
-    // else if (responseData is List) {
-    //   return responseData.cast<Map<String, dynamic>>();
-    // }
     if (kDebugMode) {
       print(
         "ApiService fetchArtworksFromCollections: Unexpected response format. Expected List or Map with 'items' or 'artworks' list.",
       );
     }
-    return []; // Return empty list on unexpected format or if no specific key found
+    return [];
   }
 
   // New method for searching artworks
@@ -148,7 +144,6 @@ class ApiService {
     };
     final dynamic responseData = await get('search', queryParams: queryParams);
 
-    // Assuming search also returns a list directly or within a keyed object
     if (responseData is List) {
       return responseData.cast<Map<String, dynamic>>();
     } else if (responseData is Map<String, dynamic> &&
@@ -174,5 +169,30 @@ class ApiService {
     final Map<String, dynamic> responseData =
         await get('galleries/$galleryId/info') as Map<String, dynamic>;
     return responseData;
+  }
+
+  // New method to fetch galleries
+  Future<List<Map<String, dynamic>>> fetchGalleries({
+    int limit = 10,
+    int skip = 0,
+  }) async {
+    final Map<String, String> queryParams = {
+      'limit': limit.toString(),
+      'skip': skip.toString(),
+    };
+    final dynamic responseData = await get(
+      'galleries',
+      queryParams: queryParams,
+    );
+
+    if (responseData is List) {
+      return responseData.cast<Map<String, dynamic>>();
+    }
+    if (kDebugMode) {
+      print(
+        "ApiService fetchGalleries: Unexpected response format. Expected List.",
+      );
+    }
+    return [];
   }
 }

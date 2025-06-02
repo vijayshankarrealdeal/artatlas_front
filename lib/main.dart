@@ -6,13 +6,13 @@ import 'package:hack_front/providers/auth_provider.dart';
 import 'package:hack_front/providers/collections_provider.dart';
 import 'package:hack_front/providers/gallery_provider.dart';
 import 'package:hack_front/providers/navigation_provider.dart';
-import 'package:hack_front/providers/theme_provider.dart'; // Import ThemeProvider
+import 'package:hack_front/providers/theme_provider.dart';
 import 'package:hack_front/repositories/artwork_repository.dart';
 import 'package:hack_front/routes/app_route_information_parser.dart';
 import 'package:hack_front/routes/app_router_delegate.dart';
 import 'package:hack_front/services/api_service.dart';
 import 'package:hack_front/services/auth_service.dart';
-import 'package:hack_front/theme/app_theme.dart'; // Import AppTheme
+import 'package:hack_front/theme/app_theme.dart';
 import 'package:provider/provider.dart';
 
 void main() async {
@@ -20,13 +20,12 @@ void main() async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   final authService = AuthService();
-  final apiService = ApiService(); // Ensure this is created
-  final artworkRepository = ArtworkRepository(
-    apiService,
-  ); // Ensure this uses apiService
+  final apiService = ApiService();
+  final artworkRepository = ArtworkRepository(apiService);
 
   final navigationProvider = NavigationProvider();
-  final galleryProvider = GalleryProvider(/* Pass dependencies if needed */);
+  // Pass artworkRepository to GalleryProvider
+  final galleryProvider = GalleryProvider(artworkRepository);
   final collectionsProvider = CollectionsProvider(artworkRepository);
   final authProvider = AuthProvider(authService);
   final themeProvider = ThemeProvider();
@@ -35,14 +34,14 @@ void main() async {
     MultiProvider(
       providers: [
         Provider<AuthService>.value(value: authService),
-        Provider<ApiService>.value(
-          value: apiService,
-        ), // Make sure ApiService is provided
-        Provider<ArtworkRepository>.value(value: artworkRepository), // CRITICAL
+        Provider<ApiService>.value(value: apiService),
+        Provider<ArtworkRepository>.value(value: artworkRepository),
 
         ChangeNotifierProvider.value(value: authProvider),
         ChangeNotifierProvider.value(value: navigationProvider),
-        ChangeNotifierProvider.value(value: galleryProvider),
+        ChangeNotifierProvider.value(
+          value: galleryProvider,
+        ), // GalleryProvider uses artworkRepository
         ChangeNotifierProvider.value(value: collectionsProvider),
         ChangeNotifierProvider.value(value: themeProvider),
       ],
@@ -84,15 +83,14 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
-    // Listen to ThemeProvider for theme changes
     final themeProvider = Provider.of<ThemeProvider>(context);
 
     return MaterialApp.router(
       debugShowCheckedModeBanner: false,
       title: 'Art Atlas',
-      themeMode: themeProvider.themeMode, // Use themeMode from provider
-      theme: AppTheme.lightTheme, // Provide light theme
-      darkTheme: AppTheme.darkTheme, // Provide dark theme
+      themeMode: themeProvider.themeMode,
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
       routerDelegate: _routerDelegate,
       routeInformationParser: _routeInformationParser,
     );

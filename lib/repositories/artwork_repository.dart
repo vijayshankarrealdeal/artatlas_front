@@ -1,5 +1,6 @@
 // lib/repositories/artwork_repository.dart
 import 'package:hack_front/models/artwork_model.dart';
+import 'package:hack_front/models/gallery_model.dart'; // Import GalleryModel
 import 'package:hack_front/services/api_service.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
 
@@ -9,13 +10,12 @@ class ArtworkRepository {
   ArtworkRepository(this._apiService);
 
   Future<List<Artwork>> getArtworks({
-    // Filter parameters from CollectionsProvider
     String? sortBy,
     String? dateRange,
     String? classification,
     String? artist,
     String? style,
-    String? searchQuery, // This will now determine if we call search or collections endpoint
+    String? searchQuery,
     int limit = 10,
     int skip = 0,
   }) async {
@@ -23,7 +23,6 @@ class ArtworkRepository {
       List<Map<String, dynamic>> artworkDataList;
 
       if (searchQuery != null && searchQuery.isNotEmpty) {
-        // If there's a search query, use the search endpoint
         if (kDebugMode) {
           print("ArtworkRepository: Searching for '$searchQuery', limit: $limit, skip: $skip");
         }
@@ -33,11 +32,7 @@ class ArtworkRepository {
           skip: skip,
         );
       } else {
-        // Otherwise, fetch from collections with filters
         final Map<String, String> filters = {};
-        // Convert user-friendly filter names to API query parameter values
-        // IMPORTANT: Adjust these keys ('sort', 'date', 'classification', etc.)
-        // to match EXACTLY what your backend /collections endpoint expects.
         if (sortBy != null && sortBy != 'Sort: By Relevance' && !sortBy.contains(': All')) filters['sort'] = sortBy.split(': ').last.toLowerCase().replaceAll(' ', '_');
         if (dateRange != null && dateRange != 'Date: All' && !dateRange.contains(': All')) filters['date'] = dateRange.split(': ').last.toLowerCase().replaceAll(' ', '_');
         if (classification != null && classification != 'Classifications: All' && !classification.contains(': All')) filters['classification'] = classification;
@@ -58,11 +53,10 @@ class ArtworkRepository {
 
     } on ApiException catch (e) {
       print("ArtworkRepository Error fetching artworks/searching: $e");
-      // Consider returning an empty list or a custom error state object
-      return []; // Return empty on API error
+      throw Exception('Failed to load artworks: ${e.message}');
     } catch (e) {
       print("ArtworkRepository Unexpected Error fetching artworks/searching: $e");
-      return []; // Return empty on unexpected error
+      throw Exception('An unexpected error occurred while loading artworks.');
     }
   }
 
@@ -72,7 +66,7 @@ class ArtworkRepository {
       return Artwork.fromJson(data);
     } on ApiException catch (e) {
       print("ArtworkRepository PoTD Error: $e");
-      return Artwork( // Fallback Artwork
+      return Artwork( 
         id: 'fallback_potd_api_error',
         artworkTitle: 'Picture of the Day (Network Error)',
         imageUrl: 'https://images.pexels.com/photos/1269968/pexels-photo-1269968.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
@@ -82,7 +76,7 @@ class ArtworkRepository {
       );
     } catch (e) {
       print("ArtworkRepository PoTD Unexpected Error: $e");
-      return Artwork( // Fallback Artwork
+      return Artwork(
         id: 'fallback_potd_unexpected_error',
         artworkTitle: 'Picture of the Day (Loading Error)',
         imageUrl: 'https://images.pexels.com/photos/753339/pexels-photo-753339.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
@@ -90,6 +84,27 @@ class ArtworkRepository {
         year: 'N/A',
         category: 'An unexpected error occurred.',
       );
+    }
+  }
+
+  // New method to get galleries
+  Future<List<GalleryModel>> getGalleries({
+    int limit = 10,
+    int skip = 0,
+  }) async {
+    try {
+      if (kDebugMode) {
+        print("ArtworkRepository: Fetching galleries, limit: $limit, skip: $skip");
+      }
+      final List<Map<String, dynamic>> galleryDataList =
+          await _apiService.fetchGalleries(limit: limit, skip: skip);
+      return galleryDataList.map((data) => GalleryModel.fromJson(data)).toList();
+    } on ApiException catch (e) {
+      print("ArtworkRepository Error fetching galleries: $e");
+      throw Exception('Failed to load galleries: ${e.message}');
+    } catch (e) {
+      print("ArtworkRepository Unexpected Error fetching galleries: $e");
+      throw Exception('An unexpected error occurred while loading galleries.');
     }
   }
 }
