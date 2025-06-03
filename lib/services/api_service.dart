@@ -22,17 +22,16 @@ class ApiService {
     String endpoint, {
     Map<String, String>? queryParams,
   }) async {
-    // Modified to accept queryParams directly
     final Uri url = Uri.parse(
       '$baseUrl/$endpoint',
-    ).replace(queryParameters: queryParams); // Use replace for queryParams
+    ).replace(queryParameters: queryParams);
     if (kDebugMode) {
       print('ApiService GET: $url');
     }
     try {
       final response = await http.get(
         url,
-        headers: {'accept': 'application/json'}, // Default accept header
+        headers: {'accept': 'application/json'},
       );
       return _processResponse(response);
     } catch (e) {
@@ -53,8 +52,6 @@ class ApiService {
       print(
         'ApiService Response Status: ${response.statusCode} for ${response.request?.url}',
       );
-      // Avoid printing very long bodies in production logs
-      // if (response.body.length < 1000) print('ApiService Response Body: ${response.body}');
     }
     switch (response.statusCode) {
       case 200:
@@ -91,17 +88,15 @@ class ApiService {
     return responseData;
   }
 
-  // Updated to use the /collections endpoint and handle filters
   Future<List<Map<String, dynamic>>> fetchArtworksFromCollections({
-    Map<String, String>?
-    filters, // User-selected filters (sort, date, classification etc.)
+    Map<String, String>? filters,
     int limit = 10,
     int skip = 0,
   }) async {
     final Map<String, String> queryParams = {
       'limit': limit.toString(),
       'skip': skip.toString(),
-      ...?filters, // Spread the filter parameters
+      ...?filters,
     };
 
     final dynamic responseData = await get(
@@ -119,19 +114,17 @@ class ApiService {
     } else if (responseData is Map<String, dynamic> &&
         responseData.containsKey('items') &&
         responseData['items'] is List) {
-      // Common pattern for paginated results: {"items": [...], "total": X, "page": Y, "size": Z}
       return (responseData['items'] as List<dynamic>)
           .cast<Map<String, dynamic>>();
     }
     if (kDebugMode) {
       print(
-        "ApiService fetchArtworksFromCollections: Unexpected response format. Expected List or Map with 'items' or 'artworks' list.",
+        "ApiService fetchArtworksFromCollections: Unexpected response format.",
       );
     }
     return [];
   }
 
-  // New method for searching artworks
   Future<List<Map<String, dynamic>>> searchArtworks({
     required String query,
     int limit = 10,
@@ -158,20 +151,19 @@ class ApiService {
           .cast<Map<String, dynamic>>();
     }
     if (kDebugMode) {
-      print(
-        "ApiService searchArtworks: Unexpected response format. Expected List or Map with 'results' or 'items' list.",
-      );
+      print("ApiService searchArtworks: Unexpected response format.");
     }
     return [];
   }
 
   Future<Map<String, dynamic>> fetchGalleryInfo(String galleryId) async {
+    // This endpoint was defined but not used yet in the previous steps.
+    // If you need it, ensure it's correctly implemented in your backend.
     final Map<String, dynamic> responseData =
         await get('galleries/$galleryId/info') as Map<String, dynamic>;
     return responseData;
   }
 
-  // New method to fetch galleries
   Future<List<Map<String, dynamic>>> fetchGalleries({
     int limit = 10,
     int skip = 0,
@@ -180,18 +172,34 @@ class ApiService {
       'limit': limit.toString(),
       'skip': skip.toString(),
     };
-    final dynamic responseData = await get(
-      'galleries',
-      queryParams: queryParams,
-    );
+    final dynamic responseData = await get('galleries', queryParams: queryParams);
 
     if (responseData is List) {
       return responseData.cast<Map<String, dynamic>>();
     }
     if (kDebugMode) {
-      print(
-        "ApiService fetchGalleries: Unexpected response format. Expected List.",
-      );
+      print("ApiService fetchGalleries: Unexpected response format.");
+    }
+    return [];
+  }
+
+  Future<List<Map<String, dynamic>>> fetchArtworksByGalleryId({
+    required String galleryId,
+    int limit = 10,
+    int skip = 0,
+  }) async {
+    final Map<String, String> queryParams = {
+      'gallery_id': galleryId,
+      'limit': limit.toString(),
+      'skip': skip.toString(),
+    };
+    final dynamic responseData = await get('get_artwork_by_gallery_id', queryParams: queryParams);
+
+    if (responseData is List) {
+      return responseData.cast<Map<String, dynamic>>();
+    }
+    if (kDebugMode) {
+      print("ApiService fetchArtworksByGalleryId: Unexpected response format for gallery $galleryId.");
     }
     return [];
   }

@@ -32,7 +32,7 @@ class GalleryModel {
       title: json['title'] as String?,
       imageUrl:
           "${ApiService.baseUrl}/proxy-image?url=${json['image_url']}"
-              as String?, // Assuming direct URL, no proxy needed unlike Artwork images
+              as String?,
       itemsCountGalleriesPage: json['items_count_galleries_page'] as String?,
       artworksId: json['artworks_id'] as String?,
     );

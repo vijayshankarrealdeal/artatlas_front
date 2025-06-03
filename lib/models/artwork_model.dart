@@ -119,10 +119,15 @@ class Artwork {
       return null;
     }
 
+    // Determine if artworks_id exists, if not, use _id, if not that either, generate one
+    String determinedId =
+        json['artworks_id'] as String? ??
+        json['_id']
+            as String? ?? // Use _id from artwork if artworks_id is missing
+        'missing_id_${DateTime.now().millisecondsSinceEpoch}';
+
     return Artwork(
-      id:
-          json['artworks_id'] as String? ??
-          'missing_artworks_id_${DateTime.now().millisecondsSinceEpoch}',
+      id: determinedId,
       mongoId: json['_id'] as String?,
       artworkTitle: json['artwork_title'] as String? ?? 'Untitled Artwork',
       artistName: json['artist_name'] as String? ?? 'Unknown Artist',
@@ -132,9 +137,9 @@ class Artwork {
       currentLocation: json['current_location'] as String?,
       artworkUrl: json['artwork_url'] as String?,
       imageUrl:
-          "${ApiService.baseUrl}/proxy-image?url=${json['image_url']}"
-              as String? ??
-          'https://via.placeholder.com/1260x750.png?text=No+Image+Available',
+          json['image_url'] != null && (json['image_url'] as String).isNotEmpty
+          ? "${ApiService.baseUrl}/proxy-image?url=${Uri.encodeComponent(json['image_url'] as String)}"
+          : 'https://via.placeholder.com/1260x750.png?text=No+Image+Available',
       detailsInImage: json['details_in_image'] as String?,
       description: json['description'] as String?,
       interpretation: json['interpretation'] as String?,
@@ -164,6 +169,9 @@ class Artwork {
       'dimensions': dimensions,
       'current_location': currentLocation,
       'artwork_url': artworkUrl,
+      // For toJson, we might want to store the original image_url if we are sending it back to an API
+      // that doesn't expect the proxied version. This depends on your backend.
+      // For simplicity, I'll keep it as is, but be mindful of this.
       'image_url': imageUrl,
       'details_in_image': detailsInImage,
       'description': description,
@@ -183,5 +191,3 @@ class Artwork {
     );
   }
 }
-
-final List<Artwork> sampleArtworks = [];

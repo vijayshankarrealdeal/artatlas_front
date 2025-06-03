@@ -1,6 +1,6 @@
 // lib/repositories/artwork_repository.dart
 import 'package:hack_front/models/artwork_model.dart';
-import 'package:hack_front/models/gallery_model.dart'; // Import GalleryModel
+import 'package:hack_front/models/gallery_model.dart';
 import 'package:hack_front/services/api_service.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
 
@@ -87,7 +87,6 @@ class ArtworkRepository {
     }
   }
 
-  // New method to get galleries
   Future<List<GalleryModel>> getGalleries({
     int limit = 10,
     int skip = 0,
@@ -105,6 +104,29 @@ class ArtworkRepository {
     } catch (e) {
       print("ArtworkRepository Unexpected Error fetching galleries: $e");
       throw Exception('An unexpected error occurred while loading galleries.');
+    }
+  }
+
+  Future<List<Artwork>> getArtworksByGalleryId({
+    required String galleryId,
+    int limit = 10,
+    int skip = 0,
+  }) async {
+    try {
+      if (kDebugMode) {
+        print("ArtworkRepository: Fetching artworks for gallery ID '$galleryId', limit: $limit, skip: $skip");
+      }
+      final List<Map<String, dynamic>> artworkDataList =
+          await _apiService.fetchArtworksByGalleryId(galleryId: galleryId, limit: limit, skip: skip);
+      // Ensure Artwork.fromJson handles the case where 'artworks_id' might be missing
+      // and uses '_id' from the artwork data as a fallback for the Artwork's 'id' field.
+      return artworkDataList.map((data) => Artwork.fromJson(data)).toList();
+    } on ApiException catch (e) {
+      print("ArtworkRepository Error fetching artworks for gallery $galleryId: $e");
+      throw Exception('Failed to load artworks for gallery: ${e.message}');
+    } catch (e) {
+      print("ArtworkRepository Unexpected Error fetching artworks for gallery $galleryId: $e");
+      throw Exception('An unexpected error occurred while loading artworks for gallery.');
     }
   }
 }
