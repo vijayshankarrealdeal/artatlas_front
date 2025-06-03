@@ -267,7 +267,6 @@ class _ArtatlasHomePageState extends State<ArtatlasHomePage> {
   }
 
   Widget _buildImageSection(BuildContext context, String imageUrlFromApi) {
-    print(imageUrlFromApi);
     final ThemeData theme = Theme.of(context);
     final isMobile = ResponsiveUtil.isMobile(context);
     const double desiredAspectRatio = 3 / 4;
@@ -279,7 +278,6 @@ class _ArtatlasHomePageState extends State<ArtatlasHomePage> {
         httpHeaders: {'Referer': 'https://artvee.com/'},
         fit: BoxFit.cover,
         errorWidget: (context, error, stackTrace) {
-          print(error);
           return Container(
             color: theme.colorScheme.surfaceVariant,
             child: Center(

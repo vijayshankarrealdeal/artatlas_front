@@ -83,6 +83,7 @@ class AppShell extends StatelessWidget {
       // So, we'll use onPopInvoked to decide and then, if needed, programmatically pop.
       canPop:
           false, // Initially prevent direct system pops, let onPopInvoked decide.
+      // ignore: deprecated_member_use
       onPopInvoked: (bool didPop) async {
         if (didPop) {
           // The pop happened for a reason outside of our control (e.g. iOS swipe, or nested navigator popped)

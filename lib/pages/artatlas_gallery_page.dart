@@ -75,7 +75,9 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage> {
     super.dispose();
   }
 
-  void _show_info() {}
+  void _showInfo() {
+    return;
+  }
 
   Widget _buildMainArtworkDisplay(
     BuildContext context,
@@ -97,7 +99,7 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage> {
           (provider.selectedArtwork!.imageUrl != null &&
               provider.selectedArtwork!.imageUrl!.isNotEmpty)
           ? GestureDetector(
-              onTap: _show_info,
+              onTap: _showInfo,
               child: AnimatedContainer(
                 duration: const Duration(microseconds: 200),
                 curve: Curves.easeInOut,
@@ -327,7 +329,6 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage> {
 
   @override
   Widget build(BuildContext context) {
-    final screenHeight = MediaQuery.of(context).size.height;
     final screenWidth = MediaQuery.of(context).size.width;
     final isMobile = ResponsiveUtil.isMobile(context);
 

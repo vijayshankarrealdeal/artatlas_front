@@ -24,7 +24,9 @@ class ArtworkRepository {
 
       if (searchQuery != null && searchQuery.isNotEmpty) {
         if (kDebugMode) {
-          print("ArtworkRepository: Searching for '$searchQuery', limit: $limit, skip: $skip");
+          print(
+            "ArtworkRepository: Searching for '$searchQuery', limit: $limit, skip: $skip",
+          );
         }
         artworkDataList = await _apiService.searchArtworks(
           query: searchQuery,
@@ -33,14 +35,37 @@ class ArtworkRepository {
         );
       } else {
         final Map<String, String> filters = {};
-        if (sortBy != null && sortBy != 'Sort: By Relevance' && !sortBy.contains(': All')) filters['sort'] = sortBy.split(': ').last.toLowerCase().replaceAll(' ', '_');
-        if (dateRange != null && dateRange != 'Date: All' && !dateRange.contains(': All')) filters['date'] = dateRange.split(': ').last.toLowerCase().replaceAll(' ', '_');
-        if (classification != null && classification != 'Classifications: All' && !classification.contains(': All')) filters['classification'] = classification;
-        if (artist != null && artist != 'Artists: All' && !artist.contains(': All')) filters['artist'] = artist;
-        if (style != null && style != 'Styles: All' && !style.contains(': All')) filters['style'] = style;
-        
+        if (sortBy != null &&
+            sortBy != 'Sort: By Relevance' &&
+            !sortBy.contains(': All'))
+          filters['sort'] = sortBy
+              .split(': ')
+              .last
+              .toLowerCase()
+              .replaceAll(' ', '_');
+        if (dateRange != null &&
+            dateRange != 'Date: All' &&
+            !dateRange.contains(': All'))
+          filters['date'] = dateRange
+              .split(': ')
+              .last
+              .toLowerCase()
+              .replaceAll(' ', '_');
+        if (classification != null &&
+            classification != 'Classifications: All' &&
+            !classification.contains(': All'))
+          filters['classification'] = classification;
+        if (artist != null &&
+            artist != 'Artists: All' &&
+            !artist.contains(': All'))
+          filters['artist'] = artist;
+        if (style != null && style != 'Styles: All' && !style.contains(': All'))
+          filters['style'] = style;
+
         if (kDebugMode) {
-          print("ArtworkRepository: Fetching collections with filters: $filters, limit: $limit, skip: $skip");
+          print(
+            "ArtworkRepository: Fetching collections with filters: $filters, limit: $limit, skip: $skip",
+          );
         }
         artworkDataList = await _apiService.fetchArtworksFromCollections(
           filters: filters.isNotEmpty ? filters : null,
@@ -48,28 +73,31 @@ class ArtworkRepository {
           skip: skip,
         );
       }
-      
-      return artworkDataList.map((data) => Artwork.fromJson(data)).toList();
 
+      return artworkDataList.map((data) => Artwork.fromJson(data)).toList();
     } on ApiException catch (e) {
       print("ArtworkRepository Error fetching artworks/searching: $e");
       throw Exception('Failed to load artworks: ${e.message}');
     } catch (e) {
-      print("ArtworkRepository Unexpected Error fetching artworks/searching: $e");
+      print(
+        "ArtworkRepository Unexpected Error fetching artworks/searching: $e",
+      );
       throw Exception('An unexpected error occurred while loading artworks.');
     }
   }
 
   Future<Artwork> getPictureOfTheDay() async {
     try {
-      final Map<String, dynamic> data = await _apiService.fetchPictureOfTheDay();
+      final Map<String, dynamic> data = await _apiService
+          .fetchPictureOfTheDay();
       return Artwork.fromJson(data);
     } on ApiException catch (e) {
       print("ArtworkRepository PoTD Error: $e");
-      return Artwork( 
+      return Artwork(
         id: 'fallback_potd_api_error',
         artworkTitle: 'Picture of the Day (Network Error)',
-        imageUrl: 'https://images.pexels.com/photos/1269968/pexels-photo-1269968.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
+        imageUrl:
+            'https://images.pexels.com/photos/1269968/pexels-photo-1269968.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
         artistName: 'System',
         year: 'N/A',
         category: 'Could not connect: ${e.message}',
@@ -79,7 +107,8 @@ class ArtworkRepository {
       return Artwork(
         id: 'fallback_potd_unexpected_error',
         artworkTitle: 'Picture of the Day (Loading Error)',
-        imageUrl: 'https://images.pexels.com/photos/753339/pexels-photo-753339.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
+        imageUrl:
+            'https://images.pexels.com/photos/753339/pexels-photo-753339.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
         artistName: 'System',
         year: 'N/A',
         category: 'An unexpected error occurred.',
@@ -93,11 +122,15 @@ class ArtworkRepository {
   }) async {
     try {
       if (kDebugMode) {
-        print("ArtworkRepository: Fetching galleries, limit: $limit, skip: $skip");
+        print(
+          "ArtworkRepository: Fetching galleries, limit: $limit, skip: $skip",
+        );
       }
-      final List<Map<String, dynamic>> galleryDataList =
-          await _apiService.fetchGalleries(limit: limit, skip: skip);
-      return galleryDataList.map((data) => GalleryModel.fromJson(data)).toList();
+      final List<Map<String, dynamic>> galleryDataList = await _apiService
+          .fetchGalleries(limit: limit, skip: skip);
+      return galleryDataList
+          .map((data) => GalleryModel.fromJson(data))
+          .toList();
     } on ApiException catch (e) {
       print("ArtworkRepository Error fetching galleries: $e");
       throw Exception('Failed to load galleries: ${e.message}');
@@ -114,19 +147,31 @@ class ArtworkRepository {
   }) async {
     try {
       if (kDebugMode) {
-        print("ArtworkRepository: Fetching artworks for gallery ID '$galleryId', limit: $limit, skip: $skip");
+        print(
+          "ArtworkRepository: Fetching artworks for gallery ID '$galleryId', limit: $limit, skip: $skip",
+        );
       }
-      final List<Map<String, dynamic>> artworkDataList =
-          await _apiService.fetchArtworksByGalleryId(galleryId: galleryId, limit: limit, skip: skip);
+      final List<Map<String, dynamic>> artworkDataList = await _apiService
+          .fetchArtworksByGalleryId(
+            galleryId: galleryId,
+            limit: limit,
+            skip: skip,
+          );
       // Ensure Artwork.fromJson handles the case where 'artworks_id' might be missing
       // and uses '_id' from the artwork data as a fallback for the Artwork's 'id' field.
       return artworkDataList.map((data) => Artwork.fromJson(data)).toList();
     } on ApiException catch (e) {
-      print("ArtworkRepository Error fetching artworks for gallery $galleryId: $e");
+      print(
+        "ArtworkRepository Error fetching artworks for gallery $galleryId: $e",
+      );
       throw Exception('Failed to load artworks for gallery: ${e.message}');
     } catch (e) {
-      print("ArtworkRepository Unexpected Error fetching artworks for gallery $galleryId: $e");
-      throw Exception('An unexpected error occurred while loading artworks for gallery.');
+      print(
+        "ArtworkRepository Unexpected Error fetching artworks for gallery $galleryId: $e",
+      );
+      throw Exception(
+        'An unexpected error occurred while loading artworks for gallery.',
+      );
     }
   }
 }

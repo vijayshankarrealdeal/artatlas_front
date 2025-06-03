@@ -126,9 +126,7 @@ class _ArtatlasCollectionsPageState extends State<ArtatlasCollectionsPage> {
             text,
             style: TextStyle(
               fontSize: ResponsiveUtil.getHeaderNavFontSize(context) * 0.9,
-              color: theme.colorScheme.onBackground.withAlpha(
-                (0.7 * 255).round(),
-              ),
+              color: theme.colorScheme.onSurface.withAlpha((0.7 * 255).round()),
               fontWeight: FontWeight.w400,
             ),
           ),
@@ -375,7 +373,7 @@ class _ArtatlasCollectionsPageState extends State<ArtatlasCollectionsPage> {
                   clipBehavior: Clip.antiAlias,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(4),
-                    color: theme.colorScheme.surfaceVariant.withAlpha(
+                    color: theme.colorScheme.surfaceContainerHighest.withAlpha(
                       (0.3 * 255).round(),
                     ),
                   ),
@@ -386,7 +384,7 @@ class _ArtatlasCollectionsPageState extends State<ArtatlasCollectionsPage> {
                           fit: BoxFit.cover,
                           width: double.infinity,
                           placeholder: (context, url) => Container(
-                            color: theme.colorScheme.surfaceVariant.withAlpha(
+                            color: theme.colorScheme.surfaceContainerHighest.withAlpha(
                               (0.1 * 255).round(),
                             ),
                             child: Center(
@@ -399,7 +397,7 @@ class _ArtatlasCollectionsPageState extends State<ArtatlasCollectionsPage> {
                             ),
                           ),
                           errorWidget: (context, url, error) => Container(
-                            color: theme.colorScheme.surfaceVariant,
+                            color: theme.colorScheme.surfaceContainerHighest,
                             child: Center(
                               child: Icon(
                                 Icons.broken_image,
@@ -410,7 +408,7 @@ class _ArtatlasCollectionsPageState extends State<ArtatlasCollectionsPage> {
                           ),
                         )
                       : Container(
-                          color: theme.colorScheme.surfaceVariant,
+                          color: theme.colorScheme.surfaceContainerHighest,
                           child: Center(
                             child: Icon(
                               Icons.image_not_supported_outlined,
@@ -614,7 +612,7 @@ class _ArtatlasCollectionsPageState extends State<ArtatlasCollectionsPage> {
                       style: TextStyle(
                         color: collectionsProvider.errorMessage != null
                             ? theme.colorScheme.error
-                            : theme.colorScheme.onBackground.withAlpha(
+                            : theme.colorScheme.onSurface.withAlpha(
                                 (0.7 * 255).round(),
                               ),
                         fontSize: 16,
@@ -727,7 +725,7 @@ class _ArtatlasCollectionsPageState extends State<ArtatlasCollectionsPage> {
                 style: TextStyle(
                   color: collectionsProvider.errorMessage != null
                       ? theme.colorScheme.error
-                      : theme.colorScheme.onBackground.withAlpha(
+                      : theme.colorScheme.onSurface.withAlpha(
                           (0.7 * 255).round(),
                         ),
                   fontSize: 16,
@@ -833,7 +831,7 @@ class _ArtatlasCollectionsPageState extends State<ArtatlasCollectionsPage> {
                 clipBehavior: Clip.antiAlias,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(4),
-                  color: theme.colorScheme.surfaceVariant.withAlpha(
+                  color: theme.colorScheme.surfaceContainerHighest.withAlpha(
                     (0.3 * 255).round(),
                   ),
                 ),
@@ -844,7 +842,7 @@ class _ArtatlasCollectionsPageState extends State<ArtatlasCollectionsPage> {
                         fit: BoxFit.cover,
                         width: double.infinity,
                         placeholder: (context, url) => Container(
-                          color: theme.colorScheme.surfaceVariant.withAlpha(
+                          color: theme.colorScheme.surfaceContainerHighest.withAlpha(
                             (0.1 * 255).round(),
                           ),
                           child: Center(
@@ -857,7 +855,7 @@ class _ArtatlasCollectionsPageState extends State<ArtatlasCollectionsPage> {
                           ),
                         ),
                         errorWidget: (context, url, error) => Container(
-                          color: theme.colorScheme.surfaceVariant,
+                          color: theme.colorScheme.surfaceContainerHighest,
                           child: Center(
                             child: Icon(
                               Icons.broken_image,
@@ -868,7 +866,7 @@ class _ArtatlasCollectionsPageState extends State<ArtatlasCollectionsPage> {
                         ),
                       )
                     : Container(
-                        color: theme.colorScheme.surfaceVariant,
+                        color: theme.colorScheme.surfaceContainerHighest,
                         child: Center(
                           child: Icon(
                             Icons.image_not_supported_outlined,

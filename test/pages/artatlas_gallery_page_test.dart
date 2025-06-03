@@ -180,16 +180,5 @@ void main() {
 
       expect(find.byType(AlertDialog), findsNothing);
     });
-
-    // TODO: Add tests for drawer interaction:
-    // - Opening the drawer
-    // - Displaying gallery items in the drawer
-    // - Tapping a gallery item in the drawer and verifying selectGalleryAndLoadArtworks is called on provider
-    // - Testing pagination in the drawer
-
-    // TODO: Add tests for horizontal artwork list (if re-enabled):
-    // - Displaying artwork items
-    // - Tapping an item updates selectedArtwork
-    // - Pagination for the horizontal list
   });
 }
