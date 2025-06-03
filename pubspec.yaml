@@ -41,6 +41,8 @@ dependencies:
   shared_preferences: ^2.5.3
   cached_network_image: ^3.4.1
   http: ^1.4.0
+  mockito: ^5.4.0
+  build_runner: ^2.4.6
 
 dev_dependencies:
   flutter_test:
