@@ -22,6 +22,7 @@ class ApiService {
     String endpoint, {
     Map<String, String>? queryParams,
   }) async {
+    print(endpoint);
     final Uri url = Uri.parse(
       '$baseUrl/$endpoint',
     ).replace(queryParameters: queryParams);
@@ -82,9 +83,12 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> fetchPictureOfTheDay() async {
+  Future<Map<String, dynamic>> fetchPictureOfTheDay(String? artwrokId) async {
+    final String endpoint = artwrokId != null && artwrokId.isNotEmpty
+        ? 'get_picture_details/?id=$artwrokId'
+        : 'get_picture_details';
     final Map<String, dynamic> responseData =
-        await get('picture_of_the_day') as Map<String, dynamic>;
+        await get(endpoint) as Map<String, dynamic>;
     return responseData;
   }
 
@@ -172,7 +176,10 @@ class ApiService {
       'limit': limit.toString(),
       'skip': skip.toString(),
     };
-    final dynamic responseData = await get('galleries', queryParams: queryParams);
+    final dynamic responseData = await get(
+      'galleries',
+      queryParams: queryParams,
+    );
 
     if (responseData is List) {
       return responseData.cast<Map<String, dynamic>>();
@@ -193,13 +200,18 @@ class ApiService {
       'limit': limit.toString(),
       'skip': skip.toString(),
     };
-    final dynamic responseData = await get('get_artwork_by_gallery_id', queryParams: queryParams);
+    final dynamic responseData = await get(
+      'artworks_by_gallery',
+      queryParams: queryParams,
+    );
 
     if (responseData is List) {
       return responseData.cast<Map<String, dynamic>>();
     }
     if (kDebugMode) {
-      print("ApiService fetchArtworksByGalleryId: Unexpected response format for gallery $galleryId.");
+      print(
+        "ApiService fetchArtworksByGalleryId: Unexpected response format for gallery $galleryId.",
+      );
     }
     return [];
   }

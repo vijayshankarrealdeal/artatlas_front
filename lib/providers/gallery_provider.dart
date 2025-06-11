@@ -158,20 +158,21 @@ class GalleryProvider with ChangeNotifier {
       }
     } catch (e) {
       _galleryArtworksErrorMessage = e.toString();
-      if (kDebugMode)
-        print(
-          "GalleryProvider: Error loading more artworks for gallery $_selectedGalleryIdInternal: $e",
-        );
+      // if (kDebugMode)
+      //   print(
+      //     "GalleryProvider: Error loading more artworks for gallery $_selectedGalleryIdInternal: $e",
+      //   );
     }
     _isLoadingGalleryArtworks = false;
     notifyListeners();
   }
 
   void setSelectedArtwork(Artwork artwork) {
-    if (_selectedArtwork?.imageUrl != artwork.imageUrl) {
-      _selectedArtwork = artwork;
-      notifyListeners();
-    }
+    _selectedArtwork = artwork;
+    notifyListeners();
+    // if (_selectedArtwork?.imageUrl != artwork.imageUrl) {
+
+    // }
   }
 
   void setVolume(double newVolume) {

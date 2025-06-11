@@ -8,6 +8,7 @@ import 'package:hack_front/models/artwork_model.dart'; // Ensure this is importe
 import 'package:hack_front/providers/gallery_provider.dart';
 import 'package:hack_front/providers/navigation_provider.dart';
 import 'package:hack_front/providers/theme_provider.dart';
+import 'package:hack_front/repositories/artwork_repository.dart';
 import 'package:hack_front/utils/glow_gradinet.dart';
 import 'package:hack_front/utils/responsive_util.dart';
 import 'package:provider/provider.dart';
@@ -88,7 +89,7 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
     });
   }
 
-  void _toggleAiInteraction() async {
+  void _toggleAiInteraction(BuildContext context, String artworkId) async {
     setState(() {
       _isAiInteracting = !_isAiInteracting;
       if (_isAiInteracting) {
@@ -100,14 +101,21 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
 
     if (_isAiInteracting) {
       if (kDebugMode) {
-        print(
-          "AI Interaction Started for artwork: ${Provider.of<GalleryProvider>(context, listen: false).selectedArtwork?.artworkTitle}",
-        );
+        // print(
+        //   "AI Interaction Started for artwork: ${Provider.of<GalleryProvider>(context, listen: false).selectedArtwork?.toJson()}",
+        // );
       }
-      // Simulate async AI interaction with Future.wait
-      await Future.wait([
-        Future.delayed(const Duration(seconds: 5)), // Replace with real futures
-      ]);
+      final artworkRepository = Provider.of<ArtworkRepository>(
+        context,
+        listen: false,
+      );
+      print(artworkId);
+      final artwork = await artworkRepository.getPictureOfTheDay(artworkId);
+      Provider.of<GalleryProvider>(
+        context,
+        listen: false,
+      ).setSelectedArtwork(artwork);
+
       if (mounted) {
         setState(() {
           _isAiInteracting = false;
@@ -278,7 +286,7 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
     return Center(
       child: Container(
         height: 110,
-        width: MediaQuery.of(context).size.width * 0.6,
+        width: MediaQuery.of(context).size.width * 0.5,
         margin: const EdgeInsets.only(top: 15),
         child: ListView.builder(
           controller: _galleryArtworksScrollController,
@@ -293,8 +301,11 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
                 onTap: () {
                   setState(() {
                     _currentBoxFit = BoxFit.cover;
-                    if (_isAiInteracting) _toggleAiInteraction();
+                    // if (_isAiInteracting) {
+                    //   _toggleAiInteraction(context, artwork.mongoId!);
+                    // }
                   });
+
                   provider.setSelectedArtwork(artwork);
                 },
                 child: Container(
@@ -582,7 +593,7 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
                     onTap: () {
                       setState(() {
                         _currentBoxFit = BoxFit.cover;
-                        if (_isAiInteracting) _toggleAiInteraction();
+                        //   if (_isAiInteracting) _toggleAiInteraction();
                       });
                       provider.selectGalleryAndLoadArtworks(gallery);
                       Navigator.pop(context);
@@ -667,22 +678,23 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
                       ),
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
-                    onPressed: _toggleAiInteraction,
+                    onPressed: () {
+                      _toggleAiInteraction(
+                        context,
+                        galleryProvider.selectedArtwork?.mongoId ?? '',
+                      );
+                    },
                     label: Text(
                       'Ask AI',
                       style: TextStyle(
-                        color: _isAiInteracting
-                            ? Colors.cyanAccent.shade400
-                            : Colors.white,
+                        color: Colors.white,
                         fontWeight: FontWeight.w500,
                         fontSize: 13,
                       ),
                     ),
                     icon: Icon(
                       CupertinoIcons.wand_stars,
-                      color: _isAiInteracting
-                          ? Colors.cyanAccent.shade400
-                          : Colors.white,
+                      color: Colors.white,
                       size: 18,
                     ),
                   ),
@@ -692,6 +704,7 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
               color: Colors.white.withOpacity(0.3),
               margin: const EdgeInsets.symmetric(horizontal: 4),
             ),
+
             TextButton.icon(
               style: TextButton.styleFrom(
                 padding: const EdgeInsets.symmetric(

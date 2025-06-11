@@ -86,11 +86,12 @@ class ArtworkRepository {
     }
   }
 
-  Future<Artwork> getPictureOfTheDay() async {
+  Future<Artwork> getPictureOfTheDay(String? artworkId) async {
     try {
       final Map<String, dynamic> data = await _apiService
-          .fetchPictureOfTheDay();
+          .fetchPictureOfTheDay(artworkId);
       return Artwork.fromJson(data);
+      
     } on ApiException catch (e) {
       print("ArtworkRepository PoTD Error: $e");
       return Artwork(
