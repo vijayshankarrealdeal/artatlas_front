@@ -1,4 +1,5 @@
 // lib/pages/artatlas_gallery_page.dart
+import 'dart:math' as math; // For pi
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
@@ -7,6 +8,7 @@ import 'package:hack_front/models/artwork_model.dart'; // Ensure this is importe
 import 'package:hack_front/providers/gallery_provider.dart';
 import 'package:hack_front/providers/navigation_provider.dart';
 import 'package:hack_front/providers/theme_provider.dart';
+import 'package:hack_front/utils/glow_gradinet.dart';
 import 'package:hack_front/utils/responsive_util.dart';
 import 'package:provider/provider.dart';
 
@@ -17,19 +19,26 @@ class ArtatlasGalleryPage extends StatefulWidget {
   State<ArtatlasGalleryPage> createState() => _ArtatlasGalleryPageState();
 }
 
-class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage> {
+class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
+    with SingleTickerProviderStateMixin {
+  // Add SingleTickerProviderStateMixin
   final ScrollController _drawerScrollController = ScrollController();
-  final ScrollController _galleryArtworksScrollController =
-      ScrollController(); // Reintroduced
+  final ScrollController _galleryArtworksScrollController = ScrollController();
   BoxFit _currentBoxFit = BoxFit.cover;
+
+  late AnimationController _glowController;
+  bool _isAiInteracting = false;
 
   @override
   void initState() {
     super.initState();
     _drawerScrollController.addListener(_onDrawerScroll);
-    _galleryArtworksScrollController.addListener(
-      _onGalleryArtworksScroll,
-    ); // Add listener
+    _galleryArtworksScrollController.addListener(_onGalleryArtworksScroll);
+
+    _glowController = AnimationController(
+      duration: const Duration(seconds: 2), // Faster glow cycle
+      vsync: this,
+    );
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = Provider.of<GalleryProvider>(context, listen: false);
@@ -51,16 +60,13 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage> {
     }
   }
 
-  // Listener for the horizontal artwork list pagination
   void _onGalleryArtworksScroll() {
     final provider = Provider.of<GalleryProvider>(context, listen: false);
     if (_galleryArtworksScrollController.position.pixels >=
-            _galleryArtworksScrollController.position.maxScrollExtent -
-                150 && // Threshold for horizontal list
+            _galleryArtworksScrollController.position.maxScrollExtent - 150 &&
         !provider.isLoadingGalleryArtworks &&
         provider.hasMoreGalleryArtworks) {
-      provider
-          .loadMoreGalleryArtworks(); // Make sure this method exists and works in GalleryProvider
+      provider.loadMoreGalleryArtworks();
     }
   }
 
@@ -68,15 +74,54 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage> {
   void dispose() {
     _drawerScrollController.removeListener(_onDrawerScroll);
     _drawerScrollController.dispose();
-    _galleryArtworksScrollController.removeListener(
-      _onGalleryArtworksScroll,
-    ); // Dispose controller
+    _galleryArtworksScrollController.removeListener(_onGalleryArtworksScroll);
     _galleryArtworksScrollController.dispose();
+    _glowController.dispose(); // Dispose glow controller
     super.dispose();
   }
 
-  void _showInfo() {
-    return;
+  void _toggleImageFit() {
+    setState(() {
+      _currentBoxFit = _currentBoxFit == BoxFit.cover
+          ? BoxFit.contain
+          : BoxFit.cover;
+    });
+  }
+
+  void _toggleAiInteraction() async {
+    setState(() {
+      _isAiInteracting = !_isAiInteracting;
+      if (_isAiInteracting) {
+        _glowController.repeat();
+      } else {
+        _glowController.stop();
+      }
+    });
+
+    if (_isAiInteracting) {
+      if (kDebugMode) {
+        print(
+          "AI Interaction Started for artwork: ${Provider.of<GalleryProvider>(context, listen: false).selectedArtwork?.artworkTitle}",
+        );
+      }
+      // Simulate async AI interaction with Future.wait
+      await Future.wait([
+        Future.delayed(const Duration(seconds: 5)), // Replace with real futures
+      ]);
+      if (mounted) {
+        setState(() {
+          _isAiInteracting = false;
+          _glowController.stop();
+        });
+      }
+      if (kDebugMode) {
+        print("AI Interaction Finished");
+      }
+    } else {
+      if (kDebugMode) {
+        print("AI Interaction Stopped");
+      }
+    }
   }
 
   Widget _buildMainArtworkDisplay(
@@ -99,56 +144,41 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage> {
           (provider.selectedArtwork!.imageUrl != null &&
               provider.selectedArtwork!.imageUrl!.isNotEmpty)
           ? GestureDetector(
-              onTap: _showInfo,
-              child: AnimatedContainer(
-                duration: const Duration(microseconds: 200),
-                curve: Curves.easeInOut,
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.4),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: Colors.white.withOpacity(0.15),
-                    width: 1,
-                  ),
-                ),
-                clipBehavior: Clip.antiAlias,
-                padding: const EdgeInsets.all(8),
-
-                child: CachedNetworkImage(
-                  imageUrl: provider.selectedArtwork!.imageUrl!,
-                  fit: _currentBoxFit,
-                  placeholder: (context, url) => const Center(
-                    child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        placeholderTextColor,
-                      ),
+              onTap: _toggleImageFit,
+              child: CachedNetworkImage(
+                imageUrl: provider.selectedArtwork!.imageUrl!,
+                fit: _currentBoxFit,
+                placeholder: (context, url) => const Center(
+                  child: CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      placeholderTextColor,
                     ),
                   ),
-                  errorWidget: (context, url, error) {
-                    if (kDebugMode) {
-                      print(
-                        "Error loading main artwork image: ${provider.selectedArtwork!.imageUrl} - $error",
-                      );
-                    }
-                    return const Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.broken_image_outlined,
-                            size: 60,
-                            color: placeholderTextColor,
-                          ),
-                          SizedBox(height: 8),
-                          Text(
-                            "Image not available",
-                            style: TextStyle(color: placeholderTextColor),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
                 ),
+                errorWidget: (context, url, error) {
+                  if (kDebugMode) {
+                    print(
+                      "Error loading main artwork image: ${provider.selectedArtwork!.imageUrl} - $error",
+                    );
+                  }
+                  return const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.broken_image_outlined,
+                          size: 60,
+                          color: placeholderTextColor,
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          "Image not available",
+                          style: TextStyle(color: placeholderTextColor),
+                        ),
+                      ],
+                    ),
+                  );
+                },
               ),
             )
           : const Center(
@@ -207,10 +237,22 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage> {
       );
     }
 
-    return content;
+    // This is the inner container for the artwork itself
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 500),
+      curve: Curves.easeInOut,
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(
+          0.4,
+        ), // Semi-transparent background for the image frame
+        borderRadius: BorderRadius.circular(10),
+      ),
+      clipBehavior: Clip.antiAlias, // Clip the image to rounded corners
+      padding: const EdgeInsets.all(4), // Padding inside the frame
+      child: content,
+    );
   }
 
-  // Reintroduced: Widget to build the horizontal list of other artworks in the gallery
   Widget _buildGalleryArtworksList(
     BuildContext context,
     GalleryProvider provider,
@@ -220,12 +262,13 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage> {
     if (provider.selectedGallery == null ||
         (provider.galleryArtworks.isEmpty &&
             !provider.isLoadingGalleryArtworks)) {
-      // Don't show the strip if no gallery is selected, or if it's empty and not loading
       return const SizedBox.shrink();
     }
     List<Artwork> artworksToList = provider.galleryArtworks.where((artwork) {
-      return artwork.imageUrl != provider.selectedArtwork!.imageUrl;
+      return provider.selectedArtwork == null ||
+          artwork.imageUrl != provider.selectedArtwork!.imageUrl;
     }).toList();
+
     if (artworksToList.isEmpty &&
         !provider.isLoadingGalleryArtworks &&
         !provider.hasMoreGalleryArtworks) {
@@ -234,9 +277,9 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage> {
 
     return Center(
       child: Container(
-        height: 110, // Height for the artwork strip
-        width: MediaQuery.of(context).size.width * 0.5,
-        margin: const EdgeInsets.only(top: 15), // Space above the strip
+        height: 110,
+        width: MediaQuery.of(context).size.width * 0.6,
+        margin: const EdgeInsets.only(top: 15),
         child: ListView.builder(
           controller: _galleryArtworksScrollController,
           scrollDirection: Axis.horizontal,
@@ -250,11 +293,12 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage> {
                 onTap: () {
                   setState(() {
                     _currentBoxFit = BoxFit.cover;
-                  }); // Reset fit for new selection
+                    if (_isAiInteracting) _toggleAiInteraction();
+                  });
                   provider.setSelectedArtwork(artwork);
                 },
                 child: Container(
-                  width: 90, // Width of each item
+                  width: 90,
                   margin: const EdgeInsets.symmetric(horizontal: 5.0),
                   decoration: BoxDecoration(
                     color: Colors.black.withOpacity(0.3),
@@ -305,7 +349,6 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage> {
                 ),
               );
             } else if (provider.hasMoreGalleryArtworks) {
-              // Loading indicator at the end of the list
               return const Center(
                 child: Padding(
                   padding: EdgeInsets.symmetric(horizontal: 20.0),
@@ -339,10 +382,9 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage> {
     final String backgroundImagePath = themeProvider.isDarkMode
         ? 'assets/images/night.png'
         : 'assets/images/xx.png';
-
     final Color navLinkColor = Colors.white.withOpacity(0.8);
 
-    return Scaffold(
+    Widget pageScaffold = Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
@@ -351,7 +393,11 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage> {
           builder: (innerContext) => IconButton(
             icon: Icon(
               isMobile ? CupertinoIcons.bars : CupertinoIcons.app_badge,
-              /* color will be from AppBarTheme or default */
+              color:
+                  currentTheme.appBarTheme.iconTheme?.color ??
+                  (currentTheme.brightness == Brightness.dark
+                      ? Colors.white
+                      : Colors.black),
             ),
             onPressed: () {
               Scaffold.of(innerContext).openDrawer();
@@ -361,7 +407,13 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage> {
         centerTitle: true,
         title: Text(
           'Gallery',
-          // style: currentTheme.appBarTheme.titleTextStyle, // Use theme's style
+          style:
+              currentTheme.appBarTheme.titleTextStyle ??
+              TextStyle(
+                color: currentTheme.brightness == Brightness.dark
+                    ? Colors.white
+                    : Colors.black,
+              ),
         ),
         actions: isMobile
             ? []
@@ -372,7 +424,6 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage> {
               ],
       ),
       drawer: Drawer(
-        /* ... Drawer code remains the same ... */
         backgroundColor: currentTheme.colorScheme.surface.withOpacity(0.95),
         child: Consumer<GalleryProvider>(
           builder: (context, provider, _) {
@@ -531,6 +582,7 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage> {
                     onTap: () {
                       setState(() {
                         _currentBoxFit = BoxFit.cover;
+                        if (_isAiInteracting) _toggleAiInteraction();
                       });
                       provider.selectGalleryAndLoadArtworks(gallery);
                       Navigator.pop(context);
@@ -558,132 +610,234 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage> {
         height: double.infinity,
         decoration: BoxDecoration(
           image: DecorationImage(
+            opacity: 0.8,
+            colorFilter: ColorFilter.mode(
+              Colors.black.withOpacity(0.5),
+              BlendMode.darken,
+            ),
             image: AssetImage(backgroundImagePath),
             fit: BoxFit.cover,
           ),
         ),
         child: SafeArea(
-          // Add SafeArea around the Column
           child: Column(
-            // Use Column for main layout
             children: [
               Expanded(
-                // Main artwork display takes up most space
-                flex: 3, // Adjust flex factor as needed
+                flex: 3,
                 child: Center(
                   child: Padding(
                     padding: EdgeInsets.only(
-                      left: isMobile ? screenWidth * 0.05 : screenWidth * 0.3,
-                      right: isMobile ? screenWidth * 0.05 : screenWidth * 0.3,
-                      top: isMobile ? screenWidth * 0.05 : screenWidth * 0.01,
+                      left: isMobile ? screenWidth * 0.05 : screenWidth * 0.28,
+                      right: isMobile ? screenWidth * 0.05 : screenWidth * 0.28,
+                      top: isMobile
+                          ? kToolbarHeight * 0.5
+                          : kToolbarHeight * 0.3,
                       bottom: isMobile
-                          ? screenWidth * 0.05
-                          : screenWidth * 0.01,
-                      // Reduced top/bottom padding
+                          ? kToolbarHeight * 0.2
+                          : kToolbarHeight * 0.1,
                     ),
                     child: _buildMainArtworkDisplay(context, galleryProvider),
                   ),
                 ),
               ),
-              // Conditionally display the horizontal artwork list
               if (galleryProvider.selectedGallery != null &&
                   (galleryProvider.galleryArtworks.isNotEmpty ||
                       galleryProvider.isLoadingGalleryArtworks))
                 _buildGalleryArtworksList(context, galleryProvider),
-
-              SizedBox(height: isMobile ? 70 : 8), // Space for FAB
+              SizedBox(height: isMobile ? 70 : 80),
             ],
           ),
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          if (galleryProvider.selectedArtwork != null) {
-            showDialog(
-              context: context,
-              builder: (BuildContext context) {
-                final artwork = galleryProvider.selectedArtwork!;
-                return AlertDialog(
-                  backgroundColor: Colors.black.withOpacity(0.9),
-                  title: Text(
-                    artwork.artworkTitle ?? "Artwork Details",
-                    style: const TextStyle(color: Colors.white, fontSize: 18),
-                  ),
-                  content: SingleChildScrollView(
-                    child: ListBody(
-                      children: <Widget>[
-                        Text(
-                          'Artist: ${artwork.artistName ?? "N/A"}',
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 14,
-                          ),
-                        ),
-                        Text(
-                          'Year: ${artwork.year ?? "N/A"}',
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 14,
-                          ),
-                        ),
-                        if (artwork.description != null &&
-                            artwork.description!.isNotEmpty) ...[
-                          const SizedBox(height: 10),
-                          Text(
-                            artwork.description!,
-                            style: const TextStyle(
-                              color: Colors.white70,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                        if (artwork.interpretation != null &&
-                            artwork.interpretation!.isNotEmpty) ...[
-                          const SizedBox(height: 10),
-                          Text(
-                            artwork.interpretation!,
-                            style: const TextStyle(
-                              color: Colors.white70,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  actions: <Widget>[
-                    TextButton(
-                      child: const Text(
-                        'Close',
-                        style: TextStyle(color: Colors.blueAccent),
+        onPressed: null,
+        backgroundColor: Colors.black.withOpacity(0.75),
+        elevation: 6.0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        label: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _isAiInteracting
+                ? SizedBox.shrink()
+                : TextButton.icon(
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
                       ),
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                      },
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
-                  ],
-                );
+                    onPressed: _toggleAiInteraction,
+                    label: Text(
+                      'Ask AI',
+                      style: TextStyle(
+                        color: _isAiInteracting
+                            ? Colors.cyanAccent.shade400
+                            : Colors.white,
+                        fontWeight: FontWeight.w500,
+                        fontSize: 13,
+                      ),
+                    ),
+                    icon: Icon(
+                      CupertinoIcons.wand_stars,
+                      color: _isAiInteracting
+                          ? Colors.cyanAccent.shade400
+                          : Colors.white,
+                      size: 18,
+                    ),
+                  ),
+            Container(
+              height: 20,
+              width: 1,
+              color: Colors.white.withOpacity(0.3),
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+            ),
+            TextButton.icon(
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              onPressed: () {
+                if (galleryProvider.selectedArtwork != null) {
+                  showDialog(
+                    context: context,
+                    builder: (BuildContext context) {
+                      final artwork = galleryProvider.selectedArtwork!;
+                      return AlertDialog(
+                        backgroundColor: Colors.black.withOpacity(0.9),
+                        title: Text(
+                          artwork.artworkTitle ?? "Artwork Details",
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                          ),
+                        ),
+                        content: SingleChildScrollView(
+                          child: ListBody(
+                            children: <Widget>[
+                              Text(
+                                'Artist: ${artwork.artistName ?? "N/A"}',
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              Text(
+                                artwork.year == null
+                                    ? ''
+                                    : 'Year: ${artwork.year}',
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              if (artwork.description != null &&
+                                  artwork.description!.isNotEmpty) ...[
+                                const SizedBox(height: 10),
+                                Text(
+                                  artwork.description!,
+                                  style: const TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                              if (artwork.interpretation != null &&
+                                  artwork.interpretation!.isNotEmpty) ...[
+                                const SizedBox(height: 10),
+                                Text(
+                                  artwork.interpretation!,
+                                  style: const TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        actions: <Widget>[
+                          TextButton(
+                            child: const Text(
+                              'Close',
+                              style: TextStyle(color: Colors.blueAccent),
+                            ),
+                            onPressed: () {
+                              Navigator.of(context).pop();
+                            },
+                          ),
+                        ],
+                      );
+                    },
+                  );
+                } else if (kDebugMode) {
+                  print("Info Tapped - No artwork selected.");
+                }
               },
-            );
-          } else if (kDebugMode) {
-            print("FAB Tapped - No artwork selected or no gallery selected.");
-          }
-        },
-        label: const Text(
-          'Info',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
+              label: const Text(
+                'Info',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w500,
+                  fontSize: 13,
+                ),
+              ),
+              icon: const Icon(
+                CupertinoIcons.info_circle_fill,
+                color: Colors.white,
+                size: 18,
+              ),
+            ),
+          ],
         ),
-        icon: const Icon(
-          CupertinoIcons.info_circle_fill,
-          color: Colors.white,
-          size: 20,
-        ),
-        backgroundColor: Colors.black.withOpacity(0.7),
-        elevation: 4.0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
+
+    if (_isAiInteracting) {
+      return Stack(
+        fit: StackFit.expand, // Ensure stack covers the whole screen
+        children: [
+          pageScaffold,
+          Positioned.fill(
+            child: IgnorePointer(
+              child: AnimatedBuilder(
+                animation: _glowController,
+                builder: (_, __) {
+                  final angle = _glowController.value * 2 * math.pi;
+                  final gradient = SweepGradient(
+                    startAngle: 0.0,
+                    endAngle: 2 * math.pi,
+                    transform: GradientRotation(angle),
+                    colors: const [
+                      CupertinoColors.systemCyan,
+                      CupertinoColors.activeBlue,
+                      CupertinoColors.systemPurple,
+                      CupertinoColors.systemBlue,
+                      CupertinoColors.systemCyan,
+                    ],
+                    stops: const [0.0, 0.25, 0.5, 0.75, 1.0],
+                  );
+                  return CustomPaint(
+                    painter: GradientBorderPainter(
+                      gradient: gradient,
+                      strokeWidth: 4,
+                      blurSigma: 8,
+                      borderRadius: 0,
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        ],
+      );
+    } else {
+      return pageScaffold;
+    }
   }
 
   Widget _buildSimpleNavLink(
@@ -696,7 +850,6 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage> {
       context,
       listen: false,
     );
-    // Forcing white text for nav links on this page, as AppBar is transparent over a dark background
     final Color effectiveColor = Colors.white.withOpacity(0.85);
 
     return Padding(
