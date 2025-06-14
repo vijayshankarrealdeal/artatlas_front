@@ -16,7 +16,7 @@ class ApiException implements Exception {
 
 class ApiService {
   static String baseUrl =
-      "http://127.0.0.1:8000"; // Or your appropriate IP for emulator/device
+      "https://34.56.10.55"; // Or your appropriate IP for emulator/device
 
   Future<dynamic> get(
     String endpoint, {
