@@ -22,7 +22,6 @@ class ArtatlasGalleryPage extends StatefulWidget {
 
 class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
     with SingleTickerProviderStateMixin {
-  // Add SingleTickerProviderStateMixin
   final ScrollController _drawerScrollController = ScrollController();
   final ScrollController _galleryArtworksScrollController = ScrollController();
   BoxFit _currentBoxFit = BoxFit.cover;
@@ -100,16 +99,10 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
     });
 
     if (_isAiInteracting) {
-      if (kDebugMode) {
-        // print(
-        //   "AI Interaction Started for artwork: ${Provider.of<GalleryProvider>(context, listen: false).selectedArtwork?.toJson()}",
-        // );
-      }
       final artworkRepository = Provider.of<ArtworkRepository>(
         context,
         listen: false,
       );
-      print(artworkId);
       final artwork = await artworkRepository.getPictureOfTheDay(artworkId);
       Provider.of<GalleryProvider>(
         context,
@@ -704,6 +697,36 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
               color: Colors.white.withOpacity(0.3),
               margin: const EdgeInsets.symmetric(horizontal: 4),
             ),
+
+            galleryProvider.selectedArtwork == null
+                ? const SizedBox.shrink()
+                : galleryProvider.selectedArtwork!.detailsInImage == null
+                ? const SizedBox.shrink()
+                : TextButton.icon(
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    onPressed: () {
+                      _toggleImageFit();
+                    },
+                    label: Text(
+                      'Listen',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w500,
+                        fontSize: 13,
+                      ),
+                    ),
+                    icon: Icon(
+                      CupertinoIcons.speaker,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                  ),
 
             TextButton.icon(
               style: TextButton.styleFrom(
