@@ -86,7 +86,7 @@ class ArtworkRepository {
     }
   }
 
-  Future<Artwork?> getPictureOfTheDay(String? artworkId) async {
+  Future<Artwork> getPictureOfTheDay(String? artworkId) async {
     try {
       final Map<String, dynamic> data = await _apiService.fetchPictureOfTheDay(
         artworkId,
@@ -94,29 +94,26 @@ class ArtworkRepository {
       return Artwork.fromJson(data);
     } on ApiException catch (e) {
       print("ArtworkRepository PoTD Error: $e");
-      return null;
-
-      // Artwork(
-      //   id: 'fallback_potd_api_error',
-      //   artworkTitle: 'Picture of the Day (Network Error)',
-      //   imageUrl:
-      //       'https://images.pexels.com/photos/1269968/pexels-photo-1269968.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
-      //   artistName: 'System',
-      //   year: 'N/A',
-      //   category: 'Could not connect: ${e.message}',
-      // );
+      return Artwork(
+        id: 'fallback_potd_api_error',
+        artworkTitle: 'Picture of the Day (Network Error)',
+        imageUrl:
+            'https://images.pexels.com/photos/1269968/pexels-photo-1269968.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
+        artistName: 'System',
+        year: 'N/A',
+        category: 'Could not connect: ${e.message}',
+      );
     } catch (e) {
       print("ArtworkRepository PoTD Unexpected Error: $e");
-      return null;
-      // Artwork(
-      //   id: 'fallback_potd_unexpected_error',
-      //   artworkTitle: 'Picture of the Day (Loading Error)',
-      //   imageUrl:
-      //       'https://images.pexels.com/photos/753339/pexels-photo-753339.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
-      //   artistName: 'System',
-      //   year: 'N/A',
-      //   category: 'An unexpected error occurred.',
-      // );
+      return Artwork(
+        id: 'fallback_potd_unexpected_error',
+        artworkTitle: 'Picture of the Day (Loading Error)',
+        imageUrl:
+            'https://images.pexels.com/photos/753339/pexels-photo-753339.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
+        artistName: 'System',
+        year: 'N/A',
+        category: 'An unexpected error occurred.',
+      );
     }
   }
 

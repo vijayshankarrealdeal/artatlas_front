@@ -15,7 +15,7 @@ class ArtatlasHomePage extends StatefulWidget {
 }
 
 class _ArtatlasHomePageState extends State<ArtatlasHomePage> {
-  late Future<Artwork?> _pictureOfTheDayFuture;
+  late Future<Artwork> _pictureOfTheDayFuture;
 
   @override
   void initState() {

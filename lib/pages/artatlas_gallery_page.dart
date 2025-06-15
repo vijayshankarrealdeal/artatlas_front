@@ -1168,7 +1168,10 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
                                   galleryProvider.selectedArtwork!.id;
                               final artworkWithDetails = await artworkRepository
                                   .getPictureOfTheDay(idToFetch);
-                              if (mounted && artworkWithDetails != null) {
+                              if (mounted &&
+                                  !artworkWithDetails.id.contains(
+                                    "fallback_potd_api_error",
+                                  )) {
                                 Provider.of<GalleryProvider>(
                                   // ignore: use_build_context_synchronously
                                   context,
