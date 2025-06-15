@@ -10,6 +10,7 @@ import 'package:hack_front/models/artwork_model.dart';
 import 'package:hack_front/providers/gallery_provider.dart';
 import 'package:hack_front/providers/navigation_provider.dart';
 import 'package:hack_front/repositories/artwork_repository.dart';
+import 'package:hack_front/repositories/g_bucket_image.dart';
 import 'package:hack_front/services/api_service.dart';
 import 'package:hack_front/utils/glow_gradinet.dart';
 import 'package:hack_front/utils/responsive_util.dart';
@@ -18,7 +19,11 @@ import 'package:provider/provider.dart';
 import 'package:record/record.dart';
 import 'package:http/http.dart' as http;
 
-import 'package:path_provider/path_provider.dart';
+// Import the audio service
+import 'package:hack_front/services/audio_service_interface.dart';
+import 'package:hack_front/services/audio_service.dart';
+
+import 'package:path_provider/path_provider.dart'; // Still needed for mobile path in _startRecording
 
 class ArtatlasGalleryPage extends StatefulWidget {
   const ArtatlasGalleryPage({super.key});
@@ -36,24 +41,25 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
   late AnimationController _glowController;
   bool _isAiGlowActive = false;
 
-  final AudioRecorder _audioRecorder = AudioRecorder();
-  final AudioPlayer _audioPlayer = AudioPlayer();
+  late AudioServiceInterface _audioService;
+
   bool _isRecordingAudio = false;
-  bool _isProcessingAudio = false; // For Ask AI audio processing
+  bool _isProcessingAudio = false;
   String? _recordedAudioPathOrUrl;
   Timer? _recordingTimer;
   int _recordingSecondsLeft = 5;
 
   StreamSubscription? _playerCompleteSubscription;
-  StreamSubscription<PlayerState>? _playerStateChangeSubscription;
+  StreamSubscription? _playerErrorSubscription;
 
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-
-  bool _isFetchingInfoDetails = false; // New state for Info button loading
+  bool _isFetchingInfoDetails = false;
 
   @override
   void initState() {
     super.initState();
+    _audioService = AudioService.getInstance();
+
     _drawerScrollController.addListener(_onDrawerScroll);
     _galleryArtworksScrollController.addListener(_onGalleryArtworksScroll);
 
@@ -62,35 +68,37 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
       vsync: this,
     );
 
-    _playerCompleteSubscription = _audioPlayer.onPlayerComplete.listen((event) {
+    _playerCompleteSubscription = _audioService.onPlayerComplete.listen((
+      event,
+    ) {
       if (mounted) {
         setState(() {
-          _isProcessingAudio = false; // Reset Ask AI processing state
+          _isProcessingAudio = false;
           _isAiGlowActive = false;
           _glowController.stop();
         });
       }
     });
 
-    _playerStateChangeSubscription = _audioPlayer.onPlayerStateChanged.listen((
-      state,
-    ) {
-      if (state == PlayerState.stopped || state == PlayerState.completed) {
-        if (mounted && _isProcessingAudio) {
-          // Check Ask AI processing state
-          setState(() {
-            _isProcessingAudio = false;
-            _isAiGlowActive = false;
-            _glowController.stop();
-          });
+    _playerErrorSubscription = _audioService.onPlayerError.listen((error) {
+      if (mounted && _isProcessingAudio) {
+        debugPrint('GalleryPage AudioService Error: $error');
+        setState(() {
+          _isProcessingAudio = false;
+          _isAiGlowActive = false;
+          _glowController.stop();
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                "Audio playback error: ${error.toString().substring(0, math.min(error.toString().length, 100))}",
+              ),
+            ),
+          );
         }
       }
     });
-    if (kDebugMode) {
-      _audioPlayer.onLog.listen((msg) {
-        debugPrint('AudioPlayer Log: $msg');
-      });
-    }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeGalleryContent();
@@ -188,11 +196,10 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
     _galleryArtworksScrollController.removeListener(_onGalleryArtworksScroll);
     _galleryArtworksScrollController.dispose();
     _glowController.dispose();
-    _audioRecorder.dispose();
-    _audioPlayer.dispose();
+    _audioService.dispose();
     _recordingTimer?.cancel();
     _playerCompleteSubscription?.cancel();
-    _playerStateChangeSubscription?.cancel();
+    _playerErrorSubscription?.cancel();
     super.dispose();
   }
 
@@ -205,7 +212,6 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
   }
 
   Future<void> _handleAskAiAudio() async {
-    // Disable if info details are being fetched
     if (_isFetchingInfoDetails) return;
 
     final galleryProvider = Provider.of<GalleryProvider>(
@@ -221,7 +227,6 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
       return;
     }
     if (_isProcessingAudio && !_isRecordingAudio) {
-      // Already processing an AI audio request
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("AI is currently responding.")),
@@ -238,20 +243,17 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
   }
 
   Future<void> _startRecording() async {
-    if (await _audioRecorder.hasPermission()) {
+    if (await _audioService.hasPermission()) {
       try {
-        String? recordingPath;
+        String? recordingPathForMobile;
         if (!kIsWeb) {
           final directory = await getApplicationDocumentsDirectory();
-          recordingPath =
+          recordingPathForMobile =
               '${directory.path}/artatlas_query_${DateTime.now().millisecondsSinceEpoch}.m4a';
         }
 
-        await _audioRecorder.start(
-          const RecordConfig(encoder: AudioEncoder.aacLc),
-          path: recordingPath ?? '',
-        );
-        _recordedAudioPathOrUrl = recordingPath;
+        await _audioService.startRecording(filePath: recordingPathForMobile);
+        // _recordedAudioPathOrUrl = recordingPathForMobile; // pathOrUrl is set by stopRecording()
 
         if (mounted) {
           setState(() {
@@ -358,30 +360,23 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
     }
 
     try {
-      final String? pathOrUrl = await _audioRecorder.stop();
+      final String? pathOrUrlFromStop = await _audioService.stopRecording();
       if (!mounted) {
         return;
       }
 
-      // Important: Set _isRecordingAudio to false before starting _isProcessingAudio
-      // to correctly reflect the state transition.
       if (_isRecordingAudio || isTimerExpired) {
-        // isTimerExpired implies we were recording
         if (mounted) {
           setState(() {
             _isRecordingAudio = false;
-            // _isProcessingAudio will be set after this if block if pathOrUrl is not null
           });
         }
       }
 
-      if (pathOrUrl != null) {
-        if (mounted)
-          setState(
-            () => _isProcessingAudio = true,
-          ); // Now set processing to true
+      if (pathOrUrlFromStop != null) {
+        _recordedAudioPathOrUrl = pathOrUrlFromStop;
+        if (mounted) setState(() => _isProcessingAudio = true);
 
-        _recordedAudioPathOrUrl = pathOrUrl;
         if (kDebugMode) {
           debugPrint(
             "Recording stopped. Output: $_recordedAudioPathOrUrl. Timer expired: $isTimerExpired",
@@ -414,7 +409,7 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
           return;
         }
         try {
-          await _audioPlayer.play(BytesSource(audioResponseBytes));
+          await _audioService.playFromBytes(audioResponseBytes);
         } catch (e) {
           if (kDebugMode) {
             debugPrint("Error playing AI response: $e");
@@ -438,9 +433,8 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
           const SnackBar(content: Text("Failed to finalize recording.")),
         );
         if (mounted) {
-          // Reset states if recording stop failed
           setState(() {
-            _isRecordingAudio = false; // Ensure this is also false
+            _isRecordingAudio = false;
             _isProcessingAudio = false;
             _isAiGlowActive = false;
             _glowController.stop();
@@ -469,7 +463,9 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
     BuildContext context,
     GalleryProvider provider,
   ) {
-    const Color placeholderTextColor = Colors.white70;
+    Color placeholderTextColor = Theme.of(context).brightness == Brightness.dark
+        ? Colors.white70
+        : Colors.black54;
     Widget displayContent;
     bool shouldWrapInArtworkBox = false;
 
@@ -484,9 +480,7 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
             SizedBox(height: 10),
             Text(
               "Loading galleries...",
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
+              style: TextStyle(color: placeholderTextColor),
             ),
           ],
         ),
@@ -501,7 +495,7 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
             'Tap to select or loading gallery...',
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: placeholderTextColor,
               fontSize: 16,
               decoration: TextDecoration.underline,
             ),
@@ -510,7 +504,7 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
       );
     } else if (provider.isLoadingGalleryArtworks &&
         provider.galleryArtworks.isEmpty) {
-      displayContent = const Center(
+      displayContent = Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -535,12 +529,12 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
           child: CachedNetworkImage(
             imageUrl: provider.selectedArtwork!.imageUrl!,
             fit: _currentBoxFit,
-            placeholder: (context, url) => const Center(
+            placeholder: (context, url) => Center(
               child: CircularProgressIndicator(
                 valueColor: AlwaysStoppedAnimation<Color>(placeholderTextColor),
               ),
             ),
-            errorWidget: (context, url, error) => const Center(
+            errorWidget: (context, url, error) => Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -561,7 +555,7 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
         );
       } else {
         shouldWrapInArtworkBox = true;
-        displayContent = const Center(
+        displayContent = Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -593,7 +587,7 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
     } else if (!provider.isLoadingGalleryArtworks &&
         provider.galleryArtworks.isEmpty &&
         provider.selectedGallery != null) {
-      displayContent = const Center(
+      displayContent = Center(
         child: Text(
           'No artworks in this gallery.',
           textAlign: TextAlign.center,
@@ -601,7 +595,7 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
         ),
       );
     } else {
-      displayContent = const Center(
+      displayContent = Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -620,9 +614,7 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
 
     if (shouldWrapInArtworkBox) {
       return WoodenFrameBox(
-        // Assuming WoodenFrameBox handles its own padding/constraints if needed
         child: AnimatedContainer(
-          // This container is for the image itself
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeInOut,
           constraints: BoxConstraints(
@@ -814,8 +806,9 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
 
     final String backgroundImagePath =
         Theme.of(context).brightness == Brightness.dark
-        ? "https://sdmntprwestus3.oaiusercontent.com/files/00000000-c7a0-61fd-a482-c8d70d7cc0f5/raw?se=2025-06-15T10%3A10%3A42Z&sp=r&sv=2024-08-04&sr=b&scid=80bb6183-2941-550f-bc46-608def8cdb3d&skoid=864daabb-d06a-46b3-a747-d35075313a83&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2025-06-14T21%3A36%3A37Z&ske=2025-06-15T21%3A36%3A37Z&sks=b&skv=2024-08-04&sig=Cgupgt23J3qeQBlUyGCgJr67wgKtVqOirDUlo5g5fgo%3D"
-        : "https://sdmntprwestus3.oaiusercontent.com/files/00000000-1340-61fd-b6b6-1eb997ec0352/raw?se=2025-06-15T10%3A06%3A57Z&sp=r&sv=2024-08-04&sr=b&scid=a46102e3-8f7d-5ef4-b110-8fc4f6d7b12d&skoid=864daabb-d06a-46b3-a747-d35075313a83&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2025-06-15T07%3A08%3A39Z&ske=2025-06-16T07%3A08%3A39Z&sks=b&skv=2024-08-04&sig=mLs4uURY3bt6fm/VGOOCMpyJ2c3H7aH5LfJW7Fbiy7A%3D";
+        ? "${ApiService.baseUrl}/image/proxy-image?url=${Uri.encodeComponent(GBucketImage.darkBackGround)}"
+        : "${ApiService.baseUrl}/image/proxy-image?url=${Uri.encodeComponent(GBucketImage.lightBackGround)}";
+
     final Color navLinkColor = Colors.white.withOpacity(0.8);
 
     Widget pageScaffold = Scaffold(
@@ -1020,8 +1013,8 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
                         if (_isAiGlowActive ||
                             _isRecordingAudio ||
                             _isProcessingAudio) {
-                          _audioRecorder.stop();
-                          _audioPlayer.stop();
+                          _audioService
+                              .stopPlayback(); /* _audioService.stopRecording(); // only if recorder supports it directly like this or manage state */
                           _recordingTimer?.cancel();
                           _isRecordingAudio = false;
                           _isProcessingAudio = false;
@@ -1095,7 +1088,6 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
         label: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Ask AI Button
             TextButton.icon(
               style: TextButton.styleFrom(
                 padding: const EdgeInsets.symmetric(
@@ -1104,13 +1096,10 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
                 ),
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
-              // Disable if Ask AI is processing or Info is fetching
               onPressed: (_isProcessingAudio || _isFetchingInfoDetails)
                   ? null
                   : _handleAskAiAudio,
-              icon:
-                  (_isProcessingAudio &&
-                      !_isRecordingAudio) // Show loader for Ask AI only
+              icon: (_isProcessingAudio && !_isRecordingAudio)
                   ? const SizedBox(
                       width: 18,
                       height: 18,
@@ -1145,7 +1134,6 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
                       ),
                     ),
             ),
-            // Info Button
             Padding(
               padding: const EdgeInsets.only(left: 8.0),
               child: TextButton.icon(
@@ -1156,12 +1144,10 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
                   ),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-                // Disable if Ask AI is active (recording/processing)
                 onPressed: (_isRecordingAudio || _isProcessingAudio)
                     ? null
                     : () async {
                         if (galleryProvider.selectedArtwork != null) {
-                          // If detailsInImage is empty, fetch details
                           if (galleryProvider.selectedArtwork!.detailsInImage ==
                                   null ||
                               galleryProvider
@@ -1179,7 +1165,6 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
                                     context,
                                     listen: false,
                                   );
-                              // Use mongoId if available, otherwise id for fetching details
                               final idToFetch =
                                   galleryProvider.selectedArtwork!.mongoId ??
                                   galleryProvider.selectedArtwork!.id;
@@ -1189,19 +1174,15 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
                                 Provider.of<GalleryProvider>(
                                   context,
                                   listen: false,
-                                ).setSelectedArtwork(
-                                  artworkWithDetails,
-                                ); // Update provider with new details
-                                // Now show dialog with potentially updated artwork
+                                ).setSelectedArtwork(artworkWithDetails);
                                 showDialog(
                                   context: context,
                                   builder: (BuildContext dialogContext) {
-                                    /* ... Dialog code ... */
                                     final currentArtwork =
                                         Provider.of<GalleryProvider>(
                                           context,
                                           listen: false,
-                                        ).selectedArtwork!; // Get potentially updated artwork
+                                        ).selectedArtwork!;
                                     return AlertDialog(
                                       backgroundColor: Colors.black.withOpacity(
                                         0.9,
@@ -1298,7 +1279,6 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
                               }
                             }
                           } else {
-                            // If detailsInImage is NOT empty, just show the dialog with existing info
                             showDialog(
                               context: context,
                               builder: (BuildContext dialogContext) {
@@ -1398,7 +1378,7 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
                           strokeWidth: 2,
                           color: Colors.white,
                         ),
-                      ) // Small loader
+                      )
                     : const Text(
                         'Info',
                         style: TextStyle(

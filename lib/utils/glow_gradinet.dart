@@ -8,9 +8,9 @@ class GradientBorderPainter extends CustomPainter {
 
   GradientBorderPainter({
     required this.gradient,
-    this.strokeWidth = 28,
+    this.strokeWidth = 48,
     this.blurSigma = 45,
-    this.borderRadius = 8,
+    this.borderRadius = 38,
   });
 
   @override

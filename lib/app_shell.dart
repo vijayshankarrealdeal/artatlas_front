@@ -52,7 +52,7 @@ class AppShell extends StatelessWidget {
           : null,
       body: currentPage,
 
-      bottomNavigationBar: isMobile
+      bottomNavigationBar: (MediaQuery.of(context).size.width < 650)
           ? NavigationBar(
               labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
               destinations: const <NavigationDestination>[

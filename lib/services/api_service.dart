@@ -2,7 +2,7 @@
 import 'dart:convert';
 import 'dart:typed_data'; // Required for Uint8List - Keep if you use it directly beyond what foundation re-exports
 import 'package:http/http.dart' as http;
-import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
+import 'package:flutter/foundation.dart' show kDebugMode;
 
 class ApiException implements Exception {
   final String message;
@@ -16,7 +16,7 @@ class ApiException implements Exception {
 }
 
 class ApiService {
-  static String baseUrl = "http://34.61.107.177:8000";
+  static String baseUrl = "http://34.61.107.177:8080";
 
   Future<dynamic> get(
     String endpoint, {
