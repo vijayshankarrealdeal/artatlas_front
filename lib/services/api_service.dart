@@ -1,7 +1,8 @@
 // lib/services/api_service.dart
 import 'dart:convert';
+import 'dart:typed_data'; // Required for Uint8List - Keep if you use it directly beyond what foundation re-exports
 import 'package:http/http.dart' as http;
-import 'package:flutter/foundation.dart' show kDebugMode;
+import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 
 class ApiException implements Exception {
   final String message;
@@ -16,11 +17,11 @@ class ApiException implements Exception {
 
 class ApiService {
   static String baseUrl = "http://127.0.0.1:8000";
+
   Future<dynamic> get(
     String endpoint, {
     Map<String, String>? queryParams,
   }) async {
-    print(endpoint);
     final Uri url = Uri.parse(
       '$baseUrl/$endpoint',
     ).replace(queryParameters: queryParams);
@@ -37,9 +38,11 @@ class ApiService {
       if (kDebugMode) {
         print('ApiService GET Error for $url: $e');
       }
-      if (e.toString().contains('Connection refused')) {
+      if (e.toString().contains('Connection refused') ||
+          e.toString().contains('SocketException') ||
+          e.toString().contains('Failed host lookup')) {
         throw ApiException(
-          'Failed to connect to the server. Is it running at $baseUrl?',
+          'Failed to connect to the server. Is it running at $baseUrl and accessible?',
         );
       }
       throw ApiException('Network error while fetching $endpoint: $e');
@@ -55,8 +58,24 @@ class ApiService {
     switch (response.statusCode) {
       case 200:
       case 201:
-        var responseJson = json.decode(response.body);
-        return responseJson;
+        final contentType = response.headers['content-type'];
+        if (contentType != null && contentType.contains('application/json')) {
+          try {
+            var responseJson = json.decode(utf8.decode(response.bodyBytes));
+            return responseJson;
+          } catch (e) {
+            if (kDebugMode) {
+              print(
+                "JSON Decode Error: ${e.toString()} \nBody: ${response.body}",
+              );
+            }
+            throw ApiException(
+              "Failed to parse JSON response.",
+              statusCode: response.statusCode,
+            );
+          }
+        }
+        return response.bodyBytes; // For non-JSON (e.g. audio bytes)
       case 400:
         throw ApiException(
           'Bad request: ${response.body}',
@@ -81,13 +100,91 @@ class ApiService {
     }
   }
 
+  Future<Uint8List> askAiWithAudioFile(String filePath) async {
+    final url = Uri.parse('$baseUrl/art/askai');
+    if (kDebugMode) {
+      print('ApiService POST (askAiWithAudioFile): $url with file $filePath');
+    }
+    final request = http.MultipartRequest('POST', url);
+    request.files.add(
+      await http.MultipartFile.fromPath('audio_file', filePath),
+    );
+
+    return _sendAskAiRequest(request);
+  }
+
+  Future<Uint8List> askAiWithAudioBytes(
+    Uint8List audioBytes,
+    String filename,
+  ) async {
+    final url = Uri.parse('$baseUrl/art/askai');
+    if (kDebugMode) {
+      print(
+        'ApiService POST (askAiWithAudioBytes): $url with bytes (filename: $filename)',
+      );
+    }
+    final request = http.MultipartRequest('POST', url);
+    request.files.add(
+      http.MultipartFile.fromBytes(
+        'audio_file',
+        audioBytes,
+        filename: filename,
+      ),
+    );
+    return _sendAskAiRequest(request);
+  }
+
+  Future<Uint8List> _sendAskAiRequest(http.MultipartRequest request) async {
+    try {
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (kDebugMode) {
+        print('ApiService askAi Response Status: ${response.statusCode}');
+      }
+
+      if (response.statusCode == 200) {
+        return response.bodyBytes;
+      } else {
+        if (kDebugMode) {
+          print('ApiService askAi Error Body: ${response.body}');
+        }
+        throw ApiException(
+          'Failed to get AI response: ${response.reasonPhrase} (Status: ${response.statusCode})',
+          statusCode: response.statusCode,
+        );
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('ApiService askAi Exception: $e');
+      }
+      if (e.toString().contains('Connection refused') ||
+          e.toString().contains('SocketException') ||
+          e.toString().contains('Failed host lookup')) {
+        throw ApiException(
+          'Failed to connect to the server for Ask AI. Is it running at $baseUrl and accessible?',
+        );
+      }
+      throw ApiException('Network error during AI audio request: $e');
+    }
+  }
+
   Future<Map<String, dynamic>> fetchPictureOfTheDay(String? artworkId) async {
     final String endpoint = artworkId != null && artworkId.isNotEmpty
         ? 'art/get_picture_details/?id=$artworkId'
         : 'art/get_picture_details';
-    final Map<String, dynamic> responseData =
-        await get(endpoint) as Map<String, dynamic>;
-    return responseData;
+    final dynamic responseData = await get(endpoint);
+    if (responseData is Map<String, dynamic>) {
+      return responseData;
+    } else if (responseData is Uint8List) {
+      try {
+        final decodedBody = utf8.decode(responseData);
+        return json.decode(decodedBody) as Map<String, dynamic>;
+      } catch (e) {
+        throw ApiException("Failed to parse picture of the day response: $e");
+      }
+    }
+    throw ApiException("Unexpected response type for picture of the day.");
   }
 
   Future<List<Map<String, dynamic>>> fetchArtworksFromCollections({
@@ -108,20 +205,21 @@ class ApiService {
 
     if (responseData is List) {
       return responseData.cast<Map<String, dynamic>>();
-    } else if (responseData is Map<String, dynamic> &&
-        responseData.containsKey('artworks') &&
-        responseData['artworks'] is List) {
-      return (responseData['artworks'] as List<dynamic>)
-          .cast<Map<String, dynamic>>();
-    } else if (responseData is Map<String, dynamic> &&
-        responseData.containsKey('items') &&
-        responseData['items'] is List) {
-      return (responseData['items'] as List<dynamic>)
-          .cast<Map<String, dynamic>>();
+    } else if (responseData is Uint8List) {
+      try {
+        final decodedBody = utf8.decode(responseData);
+        final jsonList = json.decode(decodedBody) as List;
+        return jsonList.cast<Map<String, dynamic>>();
+      } catch (e) {
+        if (kDebugMode) {
+          print("Error decoding collections response: $e. Body: ");
+        }
+        return [];
+      }
     }
     if (kDebugMode) {
       print(
-        "ApiService fetchArtworksFromCollections: Unexpected response format.",
+        "ApiService fetchArtworksFromCollections: Unexpected response format. Data: ${responseData.runtimeType}",
       );
     }
     return [];
@@ -141,29 +239,39 @@ class ApiService {
 
     if (responseData is List) {
       return responseData.cast<Map<String, dynamic>>();
-    } else if (responseData is Map<String, dynamic> &&
-        responseData.containsKey('results') &&
-        responseData['results'] is List) {
-      return (responseData['results'] as List<dynamic>)
-          .cast<Map<String, dynamic>>();
-    } else if (responseData is Map<String, dynamic> &&
-        responseData.containsKey('items') &&
-        responseData['items'] is List) {
-      return (responseData['items'] as List<dynamic>)
-          .cast<Map<String, dynamic>>();
+    } else if (responseData is Uint8List) {
+      try {
+        final decodedBody = utf8.decode(responseData);
+        final jsonList = json.decode(decodedBody) as List;
+        return jsonList.cast<Map<String, dynamic>>();
+      } catch (e) {
+        if (kDebugMode) {
+          print("Error decoding search response: $e. Body:");
+        }
+        return [];
+      }
     }
     if (kDebugMode) {
-      print("ApiService searchArtworks: Unexpected response format.");
+      print(
+        "ApiService searchArtworks: Unexpected response format. Data: ${responseData.runtimeType}",
+      );
     }
     return [];
   }
 
   Future<Map<String, dynamic>> fetchGalleryInfo(String galleryId) async {
-    // This endpoint was defined but not used yet in the previous steps.
-    // If you need it, ensure it's correctly implemented in your backend.
-    final Map<String, dynamic> responseData =
-        await get('art/galleries/$galleryId/info') as Map<String, dynamic>;
-    return responseData;
+    final dynamic responseData = await get('art/galleries/$galleryId/info');
+    if (responseData is Map<String, dynamic>) {
+      return responseData;
+    } else if (responseData is Uint8List) {
+      try {
+        final decodedBody = utf8.decode(responseData);
+        return json.decode(decodedBody) as Map<String, dynamic>;
+      } catch (e) {
+        throw ApiException("Failed to parse gallery info: $e");
+      }
+    }
+    throw ApiException("Unexpected response type for gallery info.");
   }
 
   Future<List<Map<String, dynamic>>> fetchGalleries({
@@ -181,9 +289,22 @@ class ApiService {
 
     if (responseData is List) {
       return responseData.cast<Map<String, dynamic>>();
+    } else if (responseData is Uint8List) {
+      try {
+        final decodedBody = utf8.decode(responseData);
+        final jsonList = json.decode(decodedBody) as List;
+        return jsonList.cast<Map<String, dynamic>>();
+      } catch (e) {
+        if (kDebugMode) {
+          print("Error decoding galleries response: $e. Body: ");
+        }
+        return [];
+      }
     }
     if (kDebugMode) {
-      print("ApiService fetchGalleries: Unexpected response format.");
+      print(
+        "ApiService fetchGalleries: Unexpected response format. Data: ${responseData.runtimeType}",
+      );
     }
     return [];
   }
@@ -205,10 +326,21 @@ class ApiService {
 
     if (responseData is List) {
       return responseData.cast<Map<String, dynamic>>();
+    } else if (responseData is Uint8List) {
+      try {
+        final decodedBody = utf8.decode(responseData);
+        final jsonList = json.decode(decodedBody) as List;
+        return jsonList.cast<Map<String, dynamic>>();
+      } catch (e) {
+        if (kDebugMode) {
+          print("Error decoding artworks by gallery response: $e. Body: ");
+        }
+        return [];
+      }
     }
     if (kDebugMode) {
       print(
-        "ApiService fetchArtworksByGalleryId: Unexpected response format for gallery $galleryId.",
+        "ApiService fetchArtworksByGalleryId: Unexpected response format for gallery $galleryId. Data: ${responseData.runtimeType}",
       );
     }
     return [];
