@@ -31,7 +31,7 @@ class GalleryModel {
       curator: json['curator'] as String?,
       title: json['title'] as String?,
       imageUrl:
-          "${ApiService.baseUrl}/proxy-image?url=${json['image_url']}"
+          "${ApiService.baseUrl}/image/proxy-image?url=${json['image_url']}"
               as String?,
       itemsCountGalleriesPage: json['items_count_galleries_page'] as String?,
       artworksId: json['artworks_id'] as String?,

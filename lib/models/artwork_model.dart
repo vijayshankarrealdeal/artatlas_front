@@ -138,7 +138,7 @@ class Artwork {
       artworkUrl: json['artwork_url'] as String?,
       imageUrl:
           json['image_url'] != null && (json['image_url'] as String).isNotEmpty
-          ? "${ApiService.baseUrl}/proxy-image?url=${Uri.encodeComponent(json['image_url'] as String)}"
+          ? "${ApiService.baseUrl}/image/proxy-image?url=${Uri.encodeComponent(json['image_url'] as String)}"
           : 'https://via.placeholder.com/1260x750.png?text=No+Image+Available',
       detailsInImage: json['details_in_image'] as String?,
       description: json['description'] as String?,

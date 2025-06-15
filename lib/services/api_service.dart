@@ -15,9 +15,7 @@ class ApiException implements Exception {
 }
 
 class ApiService {
-  static String baseUrl =
-      "https://34.56.10.55"; // Or your appropriate IP for emulator/device
-
+  static String baseUrl = "http://127.0.0.1:8000";
   Future<dynamic> get(
     String endpoint, {
     Map<String, String>? queryParams,
@@ -83,10 +81,10 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> fetchPictureOfTheDay(String? artwrokId) async {
-    final String endpoint = artwrokId != null && artwrokId.isNotEmpty
-        ? 'get_picture_details/?id=$artwrokId'
-        : 'get_picture_details';
+  Future<Map<String, dynamic>> fetchPictureOfTheDay(String? artworkId) async {
+    final String endpoint = artworkId != null && artworkId.isNotEmpty
+        ? 'art/get_picture_details/?id=$artworkId'
+        : 'art/get_picture_details';
     final Map<String, dynamic> responseData =
         await get(endpoint) as Map<String, dynamic>;
     return responseData;
@@ -104,7 +102,7 @@ class ApiService {
     };
 
     final dynamic responseData = await get(
-      'collections',
+      'art/collections',
       queryParams: queryParams,
     );
 
@@ -164,7 +162,7 @@ class ApiService {
     // This endpoint was defined but not used yet in the previous steps.
     // If you need it, ensure it's correctly implemented in your backend.
     final Map<String, dynamic> responseData =
-        await get('galleries/$galleryId/info') as Map<String, dynamic>;
+        await get('art/galleries/$galleryId/info') as Map<String, dynamic>;
     return responseData;
   }
 
@@ -177,7 +175,7 @@ class ApiService {
       'skip': skip.toString(),
     };
     final dynamic responseData = await get(
-      'galleries',
+      'art/galleries',
       queryParams: queryParams,
     );
 
@@ -201,7 +199,7 @@ class ApiService {
       'skip': skip.toString(),
     };
     final dynamic responseData = await get(
-      'artworks_by_gallery',
+      'art/artworks_by_gallery',
       queryParams: queryParams,
     );
 

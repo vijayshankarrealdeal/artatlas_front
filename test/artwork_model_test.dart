@@ -26,7 +26,7 @@ void main() {
       expect(artwork.category, 'Portrait');
       expect(
         artwork.imageUrl,
-        '${ApiService.baseUrl}/proxy-image?url=http%3A%2F%2Fexample.com%2Fmona_lisa.jpg',
+        '${ApiService.baseUrl}/image/proxy-image?url=http%3A%2F%2Fexample.com%2Fmona_lisa.jpg',
       );
     });
 
@@ -42,7 +42,7 @@ void main() {
       expect(artwork.id, 'mongo_starry');
       expect(
         artwork.imageUrl,
-        '${ApiService.baseUrl}/proxy-image?url=http%3A%2F%2Fexample.com%2Fstarry.jpg',
+        '${ApiService.baseUrl}/image/proxy-image?url=http%3A%2F%2Fexample.com%2Fstarry.jpg',
       );
     });
 

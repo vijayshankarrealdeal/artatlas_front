@@ -22,7 +22,6 @@ class ArtatlasGalleryPage extends StatefulWidget {
 
 class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
     with SingleTickerProviderStateMixin {
-  // Add SingleTickerProviderStateMixin
   final ScrollController _drawerScrollController = ScrollController();
   final ScrollController _galleryArtworksScrollController = ScrollController();
   BoxFit _currentBoxFit = BoxFit.cover;
@@ -100,16 +99,10 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
     });
 
     if (_isAiInteracting) {
-      if (kDebugMode) {
-        // print(
-        //   "AI Interaction Started for artwork: ${Provider.of<GalleryProvider>(context, listen: false).selectedArtwork?.toJson()}",
-        // );
-      }
       final artworkRepository = Provider.of<ArtworkRepository>(
         context,
         listen: false,
       );
-      print(artworkId);
       final artwork = await artworkRepository.getPictureOfTheDay(artworkId);
       Provider.of<GalleryProvider>(
         context,
@@ -390,9 +383,12 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
     final themeProvider = Provider.of<ThemeProvider>(context);
     final ThemeData currentTheme = Theme.of(context);
 
-    final String backgroundImagePath = themeProvider.isDarkMode
-        ? 'assets/images/night.png'
-        : 'assets/images/xx.png';
+    final String backgroundImagePath =
+        "https://images.pexels.com/photos/14386800/pexels-photo-14386800.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2";
+
+    // themeProvider.isDarkMode
+    //     ? 'https://storage.googleapis.com/image_art/night.png'
+    //     : 'https://storage.googleapis.com/image_art/xx.png';
     final Color navLinkColor = Colors.white.withOpacity(0.8);
 
     Widget pageScaffold = Scaffold(
@@ -626,7 +622,7 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
               Colors.black.withOpacity(0.5),
               BlendMode.darken,
             ),
-            image: AssetImage(backgroundImagePath),
+            image: CachedNetworkImageProvider(backgroundImagePath),
             fit: BoxFit.cover,
           ),
         ),
@@ -705,6 +701,36 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
               margin: const EdgeInsets.symmetric(horizontal: 4),
             ),
 
+            galleryProvider.selectedArtwork == null
+                ? const SizedBox.shrink()
+                : galleryProvider.selectedArtwork!.detailsInImage == null
+                ? const SizedBox.shrink()
+                : TextButton.icon(
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    onPressed: () {
+                      _toggleImageFit();
+                    },
+                    label: Text(
+                      'Listen',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w500,
+                        fontSize: 13,
+                      ),
+                    ),
+                    icon: Icon(
+                      CupertinoIcons.speaker,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                  ),
+
             TextButton.icon(
               style: TextButton.styleFrom(
                 padding: const EdgeInsets.symmetric(
@@ -715,6 +741,15 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
               ),
               onPressed: () {
                 if (galleryProvider.selectedArtwork != null) {
+                  if (galleryProvider.selectedArtwork!.detailsInImage != null &&
+                      galleryProvider
+                          .selectedArtwork!
+                          .detailsInImage!
+                          .isEmpty) {
+                    _toggleImageFit();
+                  } else if (kDebugMode) {
+                    print("No details in image to listen to.");
+                  }
                   showDialog(
                     context: context,
                     builder: (BuildContext context) {
