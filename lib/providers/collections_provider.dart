@@ -168,8 +168,6 @@ class CollectionsProvider with ChangeNotifier {
       }
     } catch (e) {
       _errorMessage = e.toString();
-      if (kDebugMode)
-        print("CollectionsProvider: Error fetching artworks: $_errorMessage");
       _hasMoreArtworks = false;
       _artworks = [];
     }

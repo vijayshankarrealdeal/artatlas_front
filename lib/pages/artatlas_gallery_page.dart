@@ -1,7 +1,6 @@
 // lib/pages/artatlas_gallery_page.dart
 import 'dart:async';
 import 'dart:math' as math; // For pi
-import 'package:audioplayers/audioplayers.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart'; // kIsWeb, kDebugMode, Uint8List
@@ -16,7 +15,6 @@ import 'package:hack_front/utils/glow_gradinet.dart';
 import 'package:hack_front/utils/responsive_util.dart';
 import 'package:hack_front/utils/wodden_frame.dart'; // Assuming this is your custom frame
 import 'package:provider/provider.dart';
-import 'package:record/record.dart';
 import 'package:http/http.dart' as http;
 
 // Import the audio service
@@ -1172,10 +1170,12 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
                                   .getPictureOfTheDay(idToFetch);
                               if (mounted) {
                                 Provider.of<GalleryProvider>(
+                                  // ignore: use_build_context_synchronously
                                   context,
                                   listen: false,
                                 ).setSelectedArtwork(artworkWithDetails);
                                 showDialog(
+                                  // ignore: use_build_context_synchronously
                                   context: context,
                                   builder: (BuildContext dialogContext) {
                                     final currentArtwork =
@@ -1261,9 +1261,8 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
                                 );
                               }
                             } catch (e) {
-                              if (kDebugMode)
-                                debugPrint("Error fetching info details: $e");
-                              if (mounted)
+                              if (mounted) {
+                                // ignore: use_build_context_synchronously
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text(
@@ -1271,6 +1270,7 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
                                     ),
                                   ),
                                 );
+                              }
                             } finally {
                               if (mounted) {
                                 setState(() {
@@ -1285,33 +1285,21 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
                                 final artwork =
                                     galleryProvider.selectedArtwork!;
                                 return AlertDialog(
-                                  backgroundColor: Colors.black.withOpacity(
-                                    0.9,
-                                  ),
                                   title: Text(
                                     artwork.artworkTitle ?? "Artwork Details",
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 18,
-                                    ),
+                                    style: TextStyle(fontSize: 18),
                                   ),
                                   content: SingleChildScrollView(
                                     child: ListBody(
                                       children: <Widget>[
                                         Text(
                                           'Artist: ${artwork.artistName ?? "N/A"}',
-                                          style: const TextStyle(
-                                            color: Colors.white70,
-                                            fontSize: 14,
-                                          ),
+                                          style: TextStyle(fontSize: 14),
                                         ),
                                         if (artwork.year != null)
                                           Text(
                                             'Year: ${artwork.year}',
-                                            style: const TextStyle(
-                                              color: Colors.white70,
-                                              fontSize: 14,
-                                            ),
+                                            style: TextStyle(fontSize: 14),
                                           ),
                                         if (artwork.description != null &&
                                             artwork
@@ -1320,10 +1308,7 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
                                           const SizedBox(height: 10),
                                           Text(
                                             artwork.description!,
-                                            style: const TextStyle(
-                                              color: Colors.white70,
-                                              fontSize: 14,
-                                            ),
+                                            style: TextStyle(fontSize: 14),
                                           ),
                                         ],
                                         if (artwork.interpretation != null &&
@@ -1333,10 +1318,7 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
                                           const SizedBox(height: 10),
                                           Text(
                                             artwork.interpretation!,
-                                            style: const TextStyle(
-                                              color: Colors.white70,
-                                              fontSize: 14,
-                                            ),
+                                            style: TextStyle(fontSize: 14),
                                           ),
                                         ],
                                       ],
