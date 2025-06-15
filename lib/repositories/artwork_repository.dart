@@ -91,6 +91,7 @@ class ArtworkRepository {
       final Map<String, dynamic> data = await _apiService.fetchPictureOfTheDay(
         artworkId,
       );
+      print(" $data");
       return Artwork.fromJson(data);
     } on ApiException catch (e) {
       print("ArtworkRepository PoTD Error: $e");

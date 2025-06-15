@@ -29,7 +29,7 @@ class _ArtatlasHomePageState extends State<ArtatlasHomePage> {
       listen: false,
     );
     setState(() {
-      _pictureOfTheDayFuture = artworkRepository.getPictureOfTheDay('');
+      _pictureOfTheDayFuture = artworkRepository.getPictureOfTheDay(null);
     });
   }
 

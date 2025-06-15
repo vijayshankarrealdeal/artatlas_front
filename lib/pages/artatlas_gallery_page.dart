@@ -1171,17 +1171,22 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
                               final idToFetch =
                                   galleryProvider.selectedArtwork!.mongoId ??
                                   galleryProvider.selectedArtwork!.id;
-                              final artworkWithDetails = await artworkRepository
-                                  .getPictureOfTheDay(idToFetch);
-                              if (mounted &&
-                                  !artworkWithDetails.id.contains(
-                                    "fallback_potd_api_error",
-                                  )) {
-                                Provider.of<GalleryProvider>(
-                                  // ignore: use_build_context_synchronously
-                                  context,
-                                  listen: false,
-                                ).setSelectedArtwork(artworkWithDetails);
+                              Artwork artworkWithDetails =
+                                  await artworkRepository.getPictureOfTheDay(
+                                    idToFetch,
+                                  );
+                                
+                              if (mounted) {
+                                if (!artworkWithDetails.id.contains(
+                                  "fallback_potd_api_error",
+                                )) {
+                                  Provider.of<GalleryProvider>(
+                                    // ignore: use_build_context_synchronously
+                                    context,
+                                    listen: false,
+                                  ).setSelectedArtwork(artworkWithDetails);
+                                }
+
                                 showDialog(
                                   // ignore: use_build_context_synchronously
                                   context: context,
