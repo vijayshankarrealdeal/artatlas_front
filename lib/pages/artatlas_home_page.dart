@@ -15,7 +15,7 @@ class ArtatlasHomePage extends StatefulWidget {
 }
 
 class _ArtatlasHomePageState extends State<ArtatlasHomePage> {
-  late Future<Artwork> _pictureOfTheDayFuture;
+  late Future<Artwork?> _pictureOfTheDayFuture;
 
   @override
   void initState() {
@@ -154,7 +154,7 @@ class _ArtatlasHomePageState extends State<ArtatlasHomePage> {
     final ThemeData theme = Theme.of(context);
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
-      body: FutureBuilder<Artwork>(
+      body: FutureBuilder<Artwork?>(
         future: _pictureOfTheDayFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -172,7 +172,6 @@ class _ArtatlasHomePageState extends State<ArtatlasHomePage> {
             } else if (!snapshot.hasData || snapshot.data == null) {
               errorMessage = 'No picture available today.';
             }
-
             return Center(
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
