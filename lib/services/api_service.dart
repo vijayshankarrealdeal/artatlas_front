@@ -1,8 +1,14 @@
 // lib/services/api_service.dart
 import 'dart:convert';
-import 'dart:typed_data'; // Required for Uint8List - Keep if you use it directly beyond what foundation re-exports
+import 'dart:typed_data';
+import 'package:hack_front/models/artwork_model.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart' show kDebugMode;
+// Import your ArtworkData model if you created one
+// import 'package:hack_front/models/artwork_data_model.dart'; // Or wherever it is
+
+// Assuming ArtworkData is simple enough to be passed as Map<String, dynamic>
+// Otherwise, create the model as shown above and import it.
 
 class ApiException implements Exception {
   final String message;
@@ -100,27 +106,36 @@ class ApiService {
     }
   }
 
-  Future<Uint8List> askAiWithAudioFile(String filePath) async {
+  // Updated methods to accept artworkData
+  Future<Uint8List> askAiWithAudioFile({
+    required String filePath,
+    required Artwork artwork, // Use Map or your ArtworkData model
+  }) async {
     final url = Uri.parse('$baseUrl/art/askai');
     if (kDebugMode) {
-      print('ApiService POST (askAiWithAudioFile): $url with file $filePath');
+      print(
+        'ApiService POST (askAiWithAudioFile): $url with file $filePath and data ${artwork.toJson()}',
+      );
     }
     final request = http.MultipartRequest('POST', url);
     request.files.add(
       await http.MultipartFile.fromPath('audio_file', filePath),
     );
-
+    // Add artwork_data as a JSON string field
+    // The backend FastAPI will parse this string field back into the ArtworkData Pydantic model.
+    request.fields['artwork_data'] = json.encode(artwork.toJson());
     return _sendAskAiRequest(request);
   }
 
-  Future<Uint8List> askAiWithAudioBytes(
-    Uint8List audioBytes,
-    String filename,
-  ) async {
+  Future<Uint8List> askAiWithAudioBytes({
+    required Uint8List audioBytes,
+    required String filename,
+    required Artwork artwork, // Use Map or your ArtworkData model
+  }) async {
     final url = Uri.parse('$baseUrl/art/askai');
     if (kDebugMode) {
       print(
-        'ApiService POST (askAiWithAudioBytes): $url with bytes (filename: $filename)',
+        'ApiService POST (askAiWithAudioBytes): $url with bytes (filename: $filename) and data ${artwork.toJson()}',
       );
     }
     final request = http.MultipartRequest('POST', url);
@@ -131,6 +146,8 @@ class ApiService {
         filename: filename,
       ),
     );
+    request.fields['artwork_data'] = json.encode(artwork.toJson());
+
     return _sendAskAiRequest(request);
   }
 
@@ -141,16 +158,16 @@ class ApiService {
 
       if (kDebugMode) {
         print('ApiService askAi Response Status: ${response.statusCode}');
+        if (response.statusCode != 200) {
+          print('ApiService askAi Error Body: ${response.body}');
+        }
       }
 
       if (response.statusCode == 200) {
         return response.bodyBytes;
       } else {
-        if (kDebugMode) {
-          print('ApiService askAi Error Body: ${response.body}');
-        }
         throw ApiException(
-          'Failed to get AI response: ${response.reasonPhrase} (Status: ${response.statusCode})',
+          'Failed to get AI response: ${response.reasonPhrase} (Status: ${response.statusCode}), Body: ${response.body}',
           statusCode: response.statusCode,
         );
       }
@@ -164,6 +181,9 @@ class ApiService {
         throw ApiException(
           'Failed to connect to the server for Ask AI. Is it running at $baseUrl and accessible?',
         );
+      }
+      if (e is ApiException) {
+        rethrow;
       }
       throw ApiException('Network error during AI audio request: $e');
     }

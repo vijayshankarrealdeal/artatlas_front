@@ -209,7 +209,7 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
     });
   }
 
-  Future<void> _handleAskAiAudio() async {
+  Future<void> _handleAskAiAudio(Artwork artwork) async {
     if (_isFetchingInfoDetails) return;
 
     final galleryProvider = Provider.of<GalleryProvider>(
@@ -234,13 +234,13 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
     }
 
     if (_isRecordingAudio) {
-      await _stopRecordingAndSend(isTimerExpired: false);
+      await _stopRecordingAndSend(artwork, isTimerExpired: false);
     } else {
-      await _startRecording();
+      await _startRecording(artwork);
     }
   }
 
-  Future<void> _startRecording() async {
+  Future<void> _startRecording(Artwork artwork) async {
     if (await _audioService.hasPermission()) {
       try {
         String? recordingPathForMobile;
@@ -281,7 +281,7 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
                     "Recording timer expired. Stopping automatically.",
                   );
                 }
-                _stopRecordingAndSend(isTimerExpired: true);
+                _stopRecordingAndSend(artwork, isTimerExpired: true);
               }
             }
           });
@@ -313,7 +313,10 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
     }
   }
 
-  Future<void> _stopRecordingAndSend({required bool isTimerExpired}) async {
+  Future<void> _stopRecordingAndSend(
+    Artwork artwork, {
+    required bool isTimerExpired,
+  }) async {
     _recordingTimer?.cancel();
 
     if (!_isRecordingAudio && !isTimerExpired) {
@@ -389,8 +392,9 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
           }
           if (response.statusCode == 200) {
             audioResponseBytes = await apiServiceProvider.askAiWithAudioBytes(
-              response.bodyBytes,
-              'web_audio.m4a',
+              audioBytes: response.bodyBytes,
+              filename: 'web_audio.m4a',
+              artwork: artwork,
             );
           } else {
             throw Exception(
@@ -399,7 +403,8 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
           }
         } else {
           audioResponseBytes = await apiServiceProvider.askAiWithAudioFile(
-            _recordedAudioPathOrUrl!,
+            filePath: _recordedAudioPathOrUrl!,
+            artwork: artwork,
           );
         }
 
@@ -1096,7 +1101,7 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
               ),
               onPressed: (_isProcessingAudio || _isFetchingInfoDetails)
                   ? null
-                  : _handleAskAiAudio,
+                  : () => _handleAskAiAudio(galleryProvider.selectedArtwork!),
               icon: (_isProcessingAudio && !_isRecordingAudio)
                   ? const SizedBox(
                       width: 18,
