@@ -16,7 +16,7 @@ class ApiException implements Exception {
 }
 
 class ApiService {
-  static String baseUrl = "http://34.61.107.177:8080";
+  static String baseUrl = "https://artatlas-995532374345.us-central1.run.app";
 
   Future<dynamic> get(
     String endpoint, {
@@ -235,7 +235,10 @@ class ApiService {
       'limit': limit.toString(),
       'skip': skip.toString(),
     };
-    final dynamic responseData = await get('search', queryParams: queryParams);
+    final dynamic responseData = await get(
+      'art/search',
+      queryParams: queryParams,
+    );
 
     if (responseData is List) {
       return responseData.cast<Map<String, dynamic>>();
