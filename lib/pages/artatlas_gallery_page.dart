@@ -10,11 +10,10 @@ import 'package:hack_front/models/artwork_model.dart';
 import 'package:hack_front/providers/gallery_provider.dart';
 import 'package:hack_front/providers/navigation_provider.dart';
 import 'package:hack_front/repositories/artwork_repository.dart';
-// import 'package:hack_front/repositories/artwork_repository.dart'; // Not directly used
 import 'package:hack_front/services/api_service.dart';
 import 'package:hack_front/utils/glow_gradinet.dart';
 import 'package:hack_front/utils/responsive_util.dart';
-import 'package:hack_front/utils/wodden_frame.dart';
+import 'package:hack_front/utils/wodden_frame.dart'; // Assuming this is your custom frame
 import 'package:provider/provider.dart';
 import 'package:record/record.dart';
 import 'package:http/http.dart' as http;
@@ -40,7 +39,7 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
   final AudioRecorder _audioRecorder = AudioRecorder();
   final AudioPlayer _audioPlayer = AudioPlayer();
   bool _isRecordingAudio = false;
-  bool _isProcessingAudio = false;
+  bool _isProcessingAudio = false; // For Ask AI audio processing
   String? _recordedAudioPathOrUrl;
   Timer? _recordingTimer;
   int _recordingSecondsLeft = 5;
@@ -49,6 +48,8 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
   StreamSubscription<PlayerState>? _playerStateChangeSubscription;
 
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
+  bool _isFetchingInfoDetails = false; // New state for Info button loading
 
   @override
   void initState() {
@@ -64,7 +65,7 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
     _playerCompleteSubscription = _audioPlayer.onPlayerComplete.listen((event) {
       if (mounted) {
         setState(() {
-          _isProcessingAudio = false;
+          _isProcessingAudio = false; // Reset Ask AI processing state
           _isAiGlowActive = false;
           _glowController.stop();
         });
@@ -76,6 +77,7 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
     ) {
       if (state == PlayerState.stopped || state == PlayerState.completed) {
         if (mounted && _isProcessingAudio) {
+          // Check Ask AI processing state
           setState(() {
             _isProcessingAudio = false;
             _isAiGlowActive = false;
@@ -203,6 +205,9 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
   }
 
   Future<void> _handleAskAiAudio() async {
+    // Disable if info details are being fetched
+    if (_isFetchingInfoDetails) return;
+
     final galleryProvider = Provider.of<GalleryProvider>(
       context,
       listen: false,
@@ -216,6 +221,7 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
       return;
     }
     if (_isProcessingAudio && !_isRecordingAudio) {
+      // Already processing an AI audio request
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("AI is currently responding.")),
@@ -357,14 +363,24 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
         return;
       }
 
+      // Important: Set _isRecordingAudio to false before starting _isProcessingAudio
+      // to correctly reflect the state transition.
       if (_isRecordingAudio || isTimerExpired) {
-        setState(() {
-          _isRecordingAudio = false;
-          _isProcessingAudio = true;
-        });
+        // isTimerExpired implies we were recording
+        if (mounted) {
+          setState(() {
+            _isRecordingAudio = false;
+            // _isProcessingAudio will be set after this if block if pathOrUrl is not null
+          });
+        }
       }
 
       if (pathOrUrl != null) {
+        if (mounted)
+          setState(
+            () => _isProcessingAudio = true,
+          ); // Now set processing to true
+
         _recordedAudioPathOrUrl = pathOrUrl;
         if (kDebugMode) {
           debugPrint(
@@ -422,7 +438,9 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
           const SnackBar(content: Text("Failed to finalize recording.")),
         );
         if (mounted) {
+          // Reset states if recording stop failed
           setState(() {
+            _isRecordingAudio = false; // Ensure this is also false
             _isProcessingAudio = false;
             _isAiGlowActive = false;
             _glowController.stop();
@@ -602,39 +620,30 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
 
     if (shouldWrapInArtworkBox) {
       return WoodenFrameBox(
+        // Assuming WoodenFrameBox handles its own padding/constraints if needed
         child: AnimatedContainer(
+          // This container is for the image itself
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeInOut,
-          // Ensure the container itself can be constrained if needed, or relies on parent constraints
           constraints: BoxConstraints(
-            // Example: Constrain max height if image is very tall
-            maxHeight:
-                MediaQuery.of(context).size.height * 0.5, // Adjust as needed
+            maxHeight: MediaQuery.of(context).size.height * 0.5,
           ),
           decoration: BoxDecoration(
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.4),
                 blurRadius: 15,
-                offset: Offset(5, 5),
+                offset: const Offset(5, 5),
               ),
             ],
-            // color: Colors.black,
-            // borderRadius: BorderRadius.circular(18),
           ),
-          // clipBehavior: Clip.antiAlias,
-          //  padding: const EdgeInsets.all(8),
           child: displayContent,
         ),
       );
     } else {
-      // When not showing the box, let the content be centered within the available space.
-      // The parent Center widget in the main build method will handle centering this.
       return displayContent;
     }
   }
-
-  // ... (Rest of the file: _buildGalleryArtworksList, build, and _buildSimpleNavLink are the same)
 
   Widget _buildGalleryArtworksList(
     BuildContext context,
@@ -830,7 +839,7 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
           galleryProvider.selectedGallery?.name ?? 'Gallery',
           style:
               currentTheme.appBarTheme.titleTextStyle ??
-              TextStyle(color: Colors.white, fontWeight: FontWeight.w300),
+              const TextStyle(color: Colors.white, fontWeight: FontWeight.w300),
         ),
         actions: isMobile
             ? []
@@ -1086,54 +1095,57 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
         label: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (_isProcessingAudio && !_isRecordingAudio)
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 18.0, vertical: 8.0),
-                child: SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
+            // Ask AI Button
+            TextButton.icon(
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
                 ),
-              )
-            else
-              TextButton.icon(
-                style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                onPressed: _handleAskAiAudio,
-                icon: Icon(
-                  _isRecordingAudio
-                      ? CupertinoIcons.stop_fill
-                      : CupertinoIcons.wand_stars,
-                  color: Colors.white,
-                  size: 18,
-                ),
-                label: _isRecordingAudio
-                    ? Text(
-                        '$_recordingSecondsLeft s',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w500,
-                          fontSize: 13,
-                          fontFeatures: [FontFeature.tabularFigures()],
-                        ),
-                      )
-                    : const Text(
-                        'Ask AI',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w500,
-                          fontSize: 13,
-                        ),
-                      ),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
+              // Disable if Ask AI is processing or Info is fetching
+              onPressed: (_isProcessingAudio || _isFetchingInfoDetails)
+                  ? null
+                  : _handleAskAiAudio,
+              icon:
+                  (_isProcessingAudio &&
+                      !_isRecordingAudio) // Show loader for Ask AI only
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Icon(
+                      _isRecordingAudio
+                          ? CupertinoIcons.stop_fill
+                          : CupertinoIcons.wand_stars,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+              label: _isRecordingAudio
+                  ? Text(
+                      '$_recordingSecondsLeft s',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w500,
+                        fontSize: 13,
+                        fontFeatures: [FontFeature.tabularFigures()],
+                      ),
+                    )
+                  : const Text(
+                      'Ask AI',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w500,
+                        fontSize: 13,
+                      ),
+                    ),
+            ),
+            // Info Button
             Padding(
               padding: const EdgeInsets.only(left: 8.0),
               child: TextButton.icon(
@@ -1144,118 +1156,264 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
                   ),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-                onPressed: () async {
-                  if (galleryProvider.selectedArtwork != null) {
-                    if (galleryProvider
-                        .selectedArtwork!
-                        .detailsInImage!
-                        .isEmpty) {
-                      final artworkRepository = Provider.of<ArtworkRepository>(
-                        context,
-                        listen: false,
-                      );
-                      final artwork = await artworkRepository
-                          .getPictureOfTheDay(
-                            galleryProvider.selectedArtwork!.mongoId,
-                          );
-                      Provider.of<GalleryProvider>(
-                        context,
-                        listen: false,
-                      ).setSelectedArtwork(artwork);
-                    }
-
-                    showDialog(
-                      context: context,
-                      builder: (BuildContext dialogContext) {
-                        final artwork = galleryProvider.selectedArtwork!;
-                        return AlertDialog(
-                          backgroundColor: Colors.black.withOpacity(0.9),
-                          title: Text(
-                            artwork.artworkTitle ?? "Artwork Details",
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                            ),
-                          ),
-                          content: SingleChildScrollView(
-                            child: ListBody(
-                              children: <Widget>[
-                                Text(
-                                  'Artist: ${artwork.artistName ?? "N/A"}',
-                                  style: const TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 14,
+                // Disable if Ask AI is active (recording/processing)
+                onPressed: (_isRecordingAudio || _isProcessingAudio)
+                    ? null
+                    : () async {
+                        if (galleryProvider.selectedArtwork != null) {
+                          // If detailsInImage is empty, fetch details
+                          if (galleryProvider.selectedArtwork!.detailsInImage ==
+                                  null ||
+                              galleryProvider
+                                  .selectedArtwork!
+                                  .detailsInImage!
+                                  .isEmpty) {
+                            if (mounted) {
+                              setState(() {
+                                _isFetchingInfoDetails = true;
+                              });
+                            }
+                            try {
+                              final artworkRepository =
+                                  Provider.of<ArtworkRepository>(
+                                    context,
+                                    listen: false,
+                                  );
+                              // Use mongoId if available, otherwise id for fetching details
+                              final idToFetch =
+                                  galleryProvider.selectedArtwork!.mongoId ??
+                                  galleryProvider.selectedArtwork!.id;
+                              final artworkWithDetails = await artworkRepository
+                                  .getPictureOfTheDay(idToFetch);
+                              if (mounted) {
+                                Provider.of<GalleryProvider>(
+                                  context,
+                                  listen: false,
+                                ).setSelectedArtwork(
+                                  artworkWithDetails,
+                                ); // Update provider with new details
+                                // Now show dialog with potentially updated artwork
+                                showDialog(
+                                  context: context,
+                                  builder: (BuildContext dialogContext) {
+                                    /* ... Dialog code ... */
+                                    final currentArtwork =
+                                        Provider.of<GalleryProvider>(
+                                          context,
+                                          listen: false,
+                                        ).selectedArtwork!; // Get potentially updated artwork
+                                    return AlertDialog(
+                                      backgroundColor: Colors.black.withOpacity(
+                                        0.9,
+                                      ),
+                                      title: Text(
+                                        currentArtwork.artworkTitle ??
+                                            "Artwork Details",
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 18,
+                                        ),
+                                      ),
+                                      content: SingleChildScrollView(
+                                        child: ListBody(
+                                          children: <Widget>[
+                                            Text(
+                                              'Artist: ${currentArtwork.artistName ?? "N/A"}',
+                                              style: const TextStyle(
+                                                color: Colors.white70,
+                                                fontSize: 14,
+                                              ),
+                                            ),
+                                            if (currentArtwork.year != null)
+                                              Text(
+                                                'Year: ${currentArtwork.year}',
+                                                style: const TextStyle(
+                                                  color: Colors.white70,
+                                                  fontSize: 14,
+                                                ),
+                                              ),
+                                            if (currentArtwork.description !=
+                                                    null &&
+                                                currentArtwork
+                                                    .description!
+                                                    .isNotEmpty) ...[
+                                              const SizedBox(height: 10),
+                                              Text(
+                                                currentArtwork.description!,
+                                                style: const TextStyle(
+                                                  color: Colors.white70,
+                                                  fontSize: 14,
+                                                ),
+                                              ),
+                                            ],
+                                            if (currentArtwork.interpretation !=
+                                                    null &&
+                                                currentArtwork
+                                                    .interpretation!
+                                                    .isNotEmpty) ...[
+                                              const SizedBox(height: 10),
+                                              Text(
+                                                currentArtwork.interpretation!,
+                                                style: const TextStyle(
+                                                  color: Colors.white70,
+                                                  fontSize: 14,
+                                                ),
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+                                      ),
+                                      actions: <Widget>[
+                                        TextButton(
+                                          child: const Text(
+                                            'Close',
+                                            style: TextStyle(
+                                              color: Colors.blueAccent,
+                                            ),
+                                          ),
+                                          onPressed: () =>
+                                              Navigator.of(dialogContext).pop(),
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                );
+                              }
+                            } catch (e) {
+                              if (kDebugMode)
+                                debugPrint("Error fetching info details: $e");
+                              if (mounted)
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      "Error fetching details: ${e.toString()}",
+                                    ),
                                   ),
+                                );
+                            } finally {
+                              if (mounted) {
+                                setState(() {
+                                  _isFetchingInfoDetails = false;
+                                });
+                              }
+                            }
+                          } else {
+                            // If detailsInImage is NOT empty, just show the dialog with existing info
+                            showDialog(
+                              context: context,
+                              builder: (BuildContext dialogContext) {
+                                final artwork =
+                                    galleryProvider.selectedArtwork!;
+                                return AlertDialog(
+                                  backgroundColor: Colors.black.withOpacity(
+                                    0.9,
+                                  ),
+                                  title: Text(
+                                    artwork.artworkTitle ?? "Artwork Details",
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 18,
+                                    ),
+                                  ),
+                                  content: SingleChildScrollView(
+                                    child: ListBody(
+                                      children: <Widget>[
+                                        Text(
+                                          'Artist: ${artwork.artistName ?? "N/A"}',
+                                          style: const TextStyle(
+                                            color: Colors.white70,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                        if (artwork.year != null)
+                                          Text(
+                                            'Year: ${artwork.year}',
+                                            style: const TextStyle(
+                                              color: Colors.white70,
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                        if (artwork.description != null &&
+                                            artwork
+                                                .description!
+                                                .isNotEmpty) ...[
+                                          const SizedBox(height: 10),
+                                          Text(
+                                            artwork.description!,
+                                            style: const TextStyle(
+                                              color: Colors.white70,
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                        ],
+                                        if (artwork.interpretation != null &&
+                                            artwork
+                                                .interpretation!
+                                                .isNotEmpty) ...[
+                                          const SizedBox(height: 10),
+                                          Text(
+                                            artwork.interpretation!,
+                                            style: const TextStyle(
+                                              color: Colors.white70,
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                  actions: <Widget>[
+                                    TextButton(
+                                      child: const Text(
+                                        'Close',
+                                        style: TextStyle(
+                                          color: Colors.blueAccent,
+                                        ),
+                                      ),
+                                      onPressed: () =>
+                                          Navigator.of(dialogContext).pop(),
+                                    ),
+                                  ],
+                                );
+                              },
+                            );
+                          }
+                        } else {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  "No artwork selected to show info.",
                                 ),
-                                if (artwork.year != null)
-                                  Text(
-                                    'Year: ${artwork.year}',
-                                    style: const TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                if (artwork.description != null &&
-                                    artwork.description!.isNotEmpty) ...[
-                                  const SizedBox(height: 10),
-                                  Text(
-                                    artwork.description!,
-                                    style: const TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                ],
-                                if (artwork.interpretation != null &&
-                                    artwork.interpretation!.isNotEmpty) ...[
-                                  const SizedBox(height: 10),
-                                  Text(
-                                    artwork.interpretation!,
-                                    style: const TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                          actions: <Widget>[
-                            TextButton(
-                              child: const Text(
-                                'Close',
-                                style: TextStyle(color: Colors.blueAccent),
                               ),
-                              onPressed: () =>
-                                  Navigator.of(dialogContext).pop(),
-                            ),
-                          ],
-                        );
+                            );
+                          }
+                        }
                       },
-                    );
-                  } else {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text("No artwork selected to show info."),
+                label: _isFetchingInfoDetails
+                    ? const SizedBox(
+                        width: 13,
+                        height: 13,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
                         ),
-                      );
-                    }
-                  }
-                },
-                label: const Text(
-                  'Info',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w500,
-                    fontSize: 13,
-                  ),
-                ),
-                icon: const Icon(
-                  CupertinoIcons.info_circle_fill,
-                  color: Colors.white,
-                  size: 18,
-                ),
+                      ) // Small loader
+                    : const Text(
+                        'Info',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w500,
+                          fontSize: 13,
+                        ),
+                      ),
+                icon: _isFetchingInfoDetails
+                    ? const SizedBox.shrink()
+                    : const Icon(
+                        CupertinoIcons.info_circle_fill,
+                        color: Colors.white,
+                        size: 18,
+                      ),
               ),
             ),
           ],
