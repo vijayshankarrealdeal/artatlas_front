@@ -35,6 +35,7 @@ class AuthProvider with ChangeNotifier {
   }
 
   User? get user => _user;
+  String get displayName => _user?.displayName ?? 'No Name Set';
   AuthStatus get status => _status;
   bool get isAuthenticated => _status == AuthStatus.authenticated;
   String? get errorMessage => _errorMessage;

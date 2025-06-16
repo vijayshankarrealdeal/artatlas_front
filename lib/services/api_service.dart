@@ -161,6 +161,59 @@ class ApiService {
     }
   }
 
+  Future<dynamic> post(String endpoint, {Map<String, dynamic>? body}) async {
+    final Uri url = Uri.parse('$baseUrl/$endpoint');
+    if (kDebugMode) {
+      print('ApiService POST: $url');
+      if (body != null) {
+        print('ApiService Body: ${json.encode(body)}');
+      }
+    }
+
+    try {
+      var headers = await _getHeaders();
+      headers['Content-Type'] = 'application/json';
+
+      var response = await http.post(
+        url,
+        headers: headers,
+        body: body != null ? json.encode(body) : null,
+      );
+
+      if (response.statusCode == 401) {
+        if (kDebugMode) {
+          print(
+            "ApiService POST: Received 401. Refreshing token and retrying.",
+          );
+        }
+        final String? newToken = await authProvider.getIdToken(true);
+        if (newToken != null) {
+          headers = await _getHeaders(); // Get new headers
+          headers['Content-Type'] = 'application/json';
+          response = await http.post(
+            url,
+            headers: headers,
+            body: body != null ? json.encode(body) : null,
+          );
+        } else {
+          await authProvider.signOut();
+          throw ApiException(
+            "Session expired. Please log in again.",
+            statusCode: 401,
+          );
+        }
+      }
+
+      return _processResponse(response);
+    } catch (e) {
+      if (kDebugMode) {
+        print('ApiService POST Error for $url: $e');
+      }
+      if (e is ApiException) rethrow;
+      throw ApiException('Network error during POST to $endpoint: $e');
+    }
+  }
+
   Future<Uint8List> _sendAskAiRequest(http.MultipartRequest request) async {
     try {
       final String? token = await authProvider.getIdToken();
@@ -406,5 +459,14 @@ class ApiService {
       );
     }
     return [];
+  }
+
+  Future<Map<String, dynamic>> updateUserSubscription({
+    required String status,
+    required String providerId,
+  }) async {
+    final body = {"new_status": status, "subscription_provider_id": providerId};
+    final response = await post('user/subscription', body: body);
+    return response as Map<String, dynamic>;
   }
 }

@@ -1,6 +1,5 @@
 // lib/pages/artatlas_collections_page.dart
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:hack_front/models/artwork_model.dart';
 import 'package:hack_front/providers/auth_provider.dart';
@@ -8,6 +7,8 @@ import 'package:hack_front/providers/collections_provider.dart';
 import 'package:hack_front/providers/navigation_provider.dart';
 import 'package:hack_front/providers/theme_provider.dart';
 import 'package:hack_front/repositories/artwork_repository.dart';
+import 'package:hack_front/repositories/user_repository.dart';
+import 'package:hack_front/services/api_service.dart';
 import 'package:hack_front/utils/responsive_util.dart';
 import 'package:provider/provider.dart';
 
@@ -57,16 +58,34 @@ class _ArtatlasCollectionsPageState extends State<ArtatlasCollectionsPage> {
       onSelected: (value) {
         if (value == 'toggle_theme') {
           themeProvider.toggleTheme();
-        }
-        if (value == 'logout') {
+        } else if (value == 'logout') {
           final authProvider = Provider.of<AuthProvider>(
             context,
             listen: false,
           );
           authProvider.signOut();
+        } else if (value == 'profile') {
+          showDialog(
+            context: context,
+            builder: (dialogContext) => const UserProfileDialog(),
+          );
         }
       },
       itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+        PopupMenuItem<String>(
+          value: 'profile',
+          child: Row(
+            children: [
+              Icon(Icons.account_circle_outlined, color: theme.iconTheme.color),
+              const SizedBox(width: 12),
+              Text(
+                'My Profile',
+                style: TextStyle(color: theme.textTheme.bodyMedium?.color),
+              ),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(),
         PopupMenuItem<String>(
           value: 'toggle_theme',
           child: Row(
@@ -494,12 +513,12 @@ class _ArtatlasCollectionsPageState extends State<ArtatlasCollectionsPage> {
                               showDialog(
                                 context: context,
                                 builder: (_) => SimilarArtworksDialog(
-                                  artworkId: artwork.mongoId!,
+                                  artworkId: artwork.id,
                                 ),
                               );
                             },
                             icon: const Icon(
-                              CupertinoIcons.search_circle,
+                              Icons.more_horiz,
                               color: Colors.white,
                             ),
                             tooltip: 'Find similar artworks',
@@ -1023,7 +1042,7 @@ class _ArtatlasCollectionsPageState extends State<ArtatlasCollectionsPage> {
                             );
                           },
                           icon: const Icon(
-                            CupertinoIcons.search_circle,
+                            Icons.more_horiz,
                             color: Colors.white,
                           ),
                           tooltip: 'Find similar artworks',
@@ -1148,6 +1167,113 @@ class _SimilarArtworksDialogState extends State<SimilarArtworksDialog> {
             );
           },
         ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Close'),
+        ),
+      ],
+    );
+  }
+}
+
+class UserProfileDialog extends StatefulWidget {
+  const UserProfileDialog({super.key});
+
+  @override
+  State<UserProfileDialog> createState() => _UserProfileDialogState();
+}
+
+class _UserProfileDialogState extends State<UserProfileDialog> {
+  bool _isActivating = false;
+  // In a real app, this would be part of the user data model fetched from the backend.
+  bool _isSubscribed = false;
+
+  Future<void> _activateSubscription() async {
+    if (!mounted) return;
+    setState(() {
+      _isActivating = true;
+    });
+
+    try {
+      final userRepository = Provider.of<UserRepository>(
+        context,
+        listen: false,
+      );
+      await userRepository.activateSubscription();
+
+      if (!mounted) return;
+      setState(() {
+        _isSubscribed = true;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Subscription activated successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      // Optionally close the dialog after a short delay
+      Future.delayed(const Duration(seconds: 1), () {
+        if (mounted) Navigator.of(context).pop();
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to activate subscription: ${e.toString()}'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isActivating = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final theme = Theme.of(context);
+
+    return AlertDialog(
+      title: const Text('My Profile'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ListTile(
+            leading: Icon(Icons.person_outline, color: theme.iconTheme.color),
+            title: Text(authProvider.displayName),
+            subtitle: const Text('Name'),
+          ),
+          ListTile(
+            leading: Icon(Icons.email_outlined, color: theme.iconTheme.color),
+            title: Text(authProvider.user?.email ?? 'No Email'),
+            subtitle: const Text('Email'),
+          ),
+          const Divider(),
+          const SizedBox(height: 16),
+          // Subscription Section
+          _isSubscribed
+              ? const ListTile(
+                  leading: Icon(Icons.check_circle, color: Colors.green),
+                  title: Text('Subscription Active'),
+                  subtitle: Text('Thank you for your support!'),
+                )
+              : Center(
+                  child: _isActivating
+                      ? const CircularProgressIndicator()
+                      : ElevatedButton.icon(
+                          onPressed: _activateSubscription,
+                          icon: const Icon(Icons.star_outline),
+                          label: const Text('Activate Subscription'),
+                        ),
+                ),
+        ],
       ),
       actions: [
         TextButton(

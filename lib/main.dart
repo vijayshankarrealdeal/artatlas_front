@@ -8,6 +8,7 @@ import 'package:hack_front/providers/gallery_provider.dart';
 import 'package:hack_front/providers/navigation_provider.dart';
 import 'package:hack_front/providers/theme_provider.dart';
 import 'package:hack_front/repositories/artwork_repository.dart';
+import 'package:hack_front/repositories/user_repository.dart';
 import 'package:hack_front/routes/app_route_information_parser.dart';
 import 'package:hack_front/routes/app_router_delegate.dart';
 import 'package:hack_front/services/api_service.dart';
@@ -24,6 +25,7 @@ void main() async {
 
   final apiService = ApiService(authProvider: authProvider);
   final artworkRepository = ArtworkRepository(apiService);
+  final userRepository = UserRepository(apiService); // Create UserRepository
 
   final navigationProvider = NavigationProvider();
   final galleryProvider = GalleryProvider(artworkRepository);
@@ -40,6 +42,7 @@ void main() async {
           value: apiService,
         ), // Provide ApiService instance
         Provider<ArtworkRepository>.value(value: artworkRepository),
+        Provider<UserRepository>.value(value: userRepository), // Add UserRepository
 
         ChangeNotifierProvider.value(value: navigationProvider),
         ChangeNotifierProvider.value(value: galleryProvider),
