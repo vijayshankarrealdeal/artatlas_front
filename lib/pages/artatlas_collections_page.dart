@@ -1,10 +1,13 @@
 // lib/pages/artatlas_collections_page.dart
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:hack_front/models/artwork_model.dart';
 import 'package:hack_front/providers/auth_provider.dart';
 import 'package:hack_front/providers/collections_provider.dart';
 import 'package:hack_front/providers/navigation_provider.dart';
 import 'package:hack_front/providers/theme_provider.dart';
+import 'package:hack_front/repositories/artwork_repository.dart';
 import 'package:hack_front/utils/responsive_util.dart';
 import 'package:provider/provider.dart';
 
@@ -365,79 +368,152 @@ class _ArtatlasCollectionsPageState extends State<ArtatlasCollectionsPage> {
         ),
         delegate: SliverChildBuilderDelegate((BuildContext context, int index) {
           final artwork = provider.artworks[index];
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Container(
-                  clipBehavior: Clip.antiAlias,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(4),
-                    color: theme.colorScheme.surfaceContainerHighest.withAlpha(
-                      (0.3 * 255).round(),
-                    ),
-                  ),
-                  child:
-                      (artwork.imageUrl != null && artwork.imageUrl!.isNotEmpty)
-                      ? CachedNetworkImage(
-                          imageUrl: artwork.imageUrl!,
-                          fit: BoxFit.cover,
-                          width: double.infinity,
-                          placeholder: (context, url) => Container(
-                            color: theme.colorScheme.surfaceContainerHighest.withAlpha(
-                              (0.1 * 255).round(),
-                            ),
-                            child: Center(
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.0,
-                                valueColor: AlwaysStoppedAnimation(
-                                  theme.colorScheme.primary,
-                                ),
+          return Container(
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(4),
+              color: theme.colorScheme.surfaceContainerHighest.withAlpha(
+                (0.3 * 255).round(),
+              ),
+            ),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                // Background Image
+                (artwork.imageUrl != null && artwork.imageUrl!.isNotEmpty)
+                    ? CachedNetworkImage(
+                        imageUrl: artwork.imageUrl!,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) => Container(
+                          color: theme.colorScheme.surfaceContainerHighest
+                              .withAlpha((0.1 * 255).round()),
+                          child: Center(
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.0,
+                              valueColor: AlwaysStoppedAnimation(
+                                theme.colorScheme.primary,
                               ),
                             ),
                           ),
-                          errorWidget: (context, url, error) => Container(
-                            color: theme.colorScheme.surfaceContainerHighest,
-                            child: Center(
-                              child: Icon(
-                                Icons.broken_image,
-                                color: theme.colorScheme.onSurfaceVariant
-                                    .withAlpha((0.7 * 255).round()),
-                              ),
-                            ),
-                          ),
-                        )
-                      : Container(
+                        ),
+                        errorWidget: (context, url, error) => Container(
                           color: theme.colorScheme.surfaceContainerHighest,
                           child: Center(
                             child: Icon(
-                              Icons.image_not_supported_outlined,
+                              Icons.broken_image,
                               color: theme.colorScheme.onSurfaceVariant
                                   .withAlpha((0.7 * 255).round()),
                             ),
                           ),
                         ),
+                      )
+                    : Container(
+                        color: theme.colorScheme.surfaceContainerHighest,
+                        child: Center(
+                          child: Icon(
+                            Icons.image_not_supported_outlined,
+                            color: theme.colorScheme.onSurfaceVariant.withAlpha(
+                              (0.7 * 255).round(),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                // Gradient Overlay for text readability
+                Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.bottomCenter,
+                        end: Alignment.center,
+                        colors: [
+                          Colors.black.withOpacity(0.85),
+                          Colors.transparent,
+                        ],
+                        stops: const [0.0, 0.6],
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '${artwork.artworkTitle ?? "Untitled"} — ${artwork.year ?? "N/A"}',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: theme.textTheme.bodyLarge?.color,
+
+                // Text and Button Overlay
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                '${artwork.artworkTitle ?? "Untitled"} — ${artwork.year ?? "N/A"}',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.white,
+                                  shadows: [
+                                    Shadow(
+                                      blurRadius: 2,
+                                      color: Colors.black54,
+                                    ),
+                                  ],
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                artwork.artistName ?? "Unknown Artist",
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.white.withOpacity(0.85),
+                                  shadows: const [
+                                    Shadow(
+                                      blurRadius: 2,
+                                      color: Colors.black54,
+                                    ),
+                                  ],
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Material(
+                          color: Colors.transparent,
+                          child: IconButton(
+                            onPressed: () {
+                              showDialog(
+                                context: context,
+                                builder: (_) => SimilarArtworksDialog(
+                                  artworkId: artwork.mongoId!,
+                                ),
+                              );
+                            },
+                            icon: const Icon(
+                              CupertinoIcons.search_circle,
+                              color: Colors.white,
+                            ),
+                            tooltip: 'Find similar artworks',
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            splashRadius: 20,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                artwork.artistName ?? "Unknown Artist",
-                style: TextStyle(fontSize: 12, color: theme.hintColor),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
+              ],
+            ),
           );
         }, childCount: provider.artworks.length),
       ),
@@ -822,83 +898,263 @@ class _ArtatlasCollectionsPageState extends State<ArtatlasCollectionsPage> {
       itemCount: provider.artworks.length,
       itemBuilder: (context, index) {
         final artwork = provider.artworks[index];
-        return Column(
-          /* ... Same item Column as in _buildArtworkGridSliver ... */
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Container(
-                clipBehavior: Clip.antiAlias,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(4),
-                  color: theme.colorScheme.surfaceContainerHighest.withAlpha(
-                    (0.3 * 255).round(),
-                  ),
-                ),
-                child:
-                    (artwork.imageUrl != null && artwork.imageUrl!.isNotEmpty)
-                    ? CachedNetworkImage(
-                        imageUrl: artwork.imageUrl!,
-                        fit: BoxFit.cover,
-                        width: double.infinity,
-                        placeholder: (context, url) => Container(
-                          color: theme.colorScheme.surfaceContainerHighest.withAlpha(
-                            (0.1 * 255).round(),
-                          ),
-                          child: Center(
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.0,
-                              valueColor: AlwaysStoppedAnimation(
-                                theme.colorScheme.primary,
-                              ),
+        return Container(
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(4),
+            color: theme.colorScheme.surfaceContainerHighest.withAlpha(
+              (0.3 * 255).round(),
+            ),
+          ),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // Background Image
+              (artwork.imageUrl != null && artwork.imageUrl!.isNotEmpty)
+                  ? CachedNetworkImage(
+                      imageUrl: artwork.imageUrl!,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) => Container(
+                        color: theme.colorScheme.surfaceContainerHighest
+                            .withAlpha((0.1 * 255).round()),
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.0,
+                            valueColor: AlwaysStoppedAnimation(
+                              theme.colorScheme.primary,
                             ),
                           ),
                         ),
-                        errorWidget: (context, url, error) => Container(
-                          color: theme.colorScheme.surfaceContainerHighest,
-                          child: Center(
-                            child: Icon(
-                              Icons.broken_image,
-                              color: theme.colorScheme.onSurfaceVariant
-                                  .withAlpha((0.7 * 255).round()),
-                            ),
-                          ),
-                        ),
-                      )
-                    : Container(
+                      ),
+                      errorWidget: (context, url, error) => Container(
                         color: theme.colorScheme.surfaceContainerHighest,
                         child: Center(
                           child: Icon(
-                            Icons.image_not_supported_outlined,
+                            Icons.broken_image,
                             color: theme.colorScheme.onSurfaceVariant.withAlpha(
                               (0.7 * 255).round(),
                             ),
                           ),
                         ),
                       ),
+                    )
+                  : Container(
+                      color: theme.colorScheme.surfaceContainerHighest,
+                      child: Center(
+                        child: Icon(
+                          Icons.image_not_supported_outlined,
+                          color: theme.colorScheme.onSurfaceVariant.withAlpha(
+                            (0.7 * 255).round(),
+                          ),
+                        ),
+                      ),
+                    ),
+
+              // Gradient Overlay for text readability
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.center,
+                      colors: [
+                        Colors.black.withOpacity(0.85),
+                        Colors.transparent,
+                      ],
+                      stops: const [0.0, 0.6],
+                    ),
+                  ),
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '${artwork.artworkTitle ?? "Untitled"} — ${artwork.year ?? "N/A"}',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: theme.textTheme.bodyLarge?.color,
+
+              // Text and Button Overlay
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              '${artwork.artworkTitle ?? "Untitled"} — ${artwork.year ?? "N/A"}',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.white,
+                                shadows: [
+                                  Shadow(blurRadius: 2, color: Colors.black54),
+                                ],
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              artwork.artistName ?? "Unknown Artist",
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.white.withOpacity(0.85),
+                                shadows: const [
+                                  Shadow(blurRadius: 2, color: Colors.black54),
+                                ],
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Material(
+                        color: Colors.transparent,
+                        child: IconButton(
+                          onPressed: () {
+                            showDialog(
+                              context: context,
+                              builder: (_) =>
+                                  SimilarArtworksDialog(artworkId: artwork.id),
+                            );
+                          },
+                          icon: const Icon(
+                            CupertinoIcons.search_circle,
+                            color: Colors.white,
+                          ),
+                          tooltip: 'Find similar artworks',
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          splashRadius: 20,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              artwork.artistName ?? "Unknown Artist",
-              style: TextStyle(fontSize: 12, color: theme.hintColor),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
+            ],
+          ),
         );
       },
+    );
+  }
+}
+
+class SimilarArtworksDialog extends StatefulWidget {
+  final String artworkId;
+
+  const SimilarArtworksDialog({super.key, required this.artworkId});
+
+  @override
+  State<SimilarArtworksDialog> createState() => _SimilarArtworksDialogState();
+}
+
+class _SimilarArtworksDialogState extends State<SimilarArtworksDialog> {
+  late Future<List<Artwork>> _similarArtworksFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    final artworkRepository = Provider.of<ArtworkRepository>(
+      context,
+      listen: false,
+    );
+    _similarArtworksFuture = artworkRepository.getSimilarArtworks(
+      artworkId: widget.artworkId,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return AlertDialog(
+      title: const Text('Similar Artworks'),
+      backgroundColor: theme.cardColor,
+      content: SizedBox(
+        width: double.maxFinite,
+        child: FutureBuilder<List<Artwork>>(
+          future: _similarArtworksFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            } else if (snapshot.hasError) {
+              return Center(
+                child: Text(
+                  'Error: ${snapshot.error}',
+                  style: TextStyle(color: theme.colorScheme.error),
+                ),
+              );
+            } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+              return const Center(child: Text('No similar artworks found.'));
+            }
+
+            final similarArtworks = snapshot.data!;
+            return GridView.builder(
+              shrinkWrap: true, // Important for dialogs
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: ResponsiveUtil.isMobile(context) ? 2 : 3,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                childAspectRatio: 0.7,
+              ),
+              itemCount: similarArtworks.length,
+              itemBuilder: (context, index) {
+                final artwork = similarArtworks[index];
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: CachedNetworkImage(
+                          imageUrl: artwork.imageUrl ?? '',
+                          fit: BoxFit.cover,
+                          errorWidget: (context, url, error) => Container(
+                            color: theme.colorScheme.surfaceVariant,
+                            child: Icon(
+                              Icons.broken_image,
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                          placeholder: (context, url) =>
+                              Container(color: theme.colorScheme.surface),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      artwork.artworkTitle ?? 'Untitled',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      artwork.artistName ?? 'Unknown Artist',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.hintColor,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                );
+              },
+            );
+          },
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Close'),
+        ),
+      ],
     );
   }
 }

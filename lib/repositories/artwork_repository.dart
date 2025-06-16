@@ -168,4 +168,23 @@ class ArtworkRepository {
       );
     }
   }
+
+  Future<List<Artwork>> getSimilarArtworks({required String artworkId}) async {
+    try {
+      if (kDebugMode) {
+        print(
+          "ArtworkRepository: Fetching similar artworks for ID '$artworkId'",
+        );
+      }
+      final List<Map<String, dynamic>> artworkDataList = await _apiService
+          .fetchSimilarArtworks(artworkId: artworkId);
+      return artworkDataList.map((data) => Artwork.fromJson(data)).toList();
+    } on ApiException catch (e) {
+      throw Exception('Failed to load similar artworks: ${e.message}');
+    } catch (e) {
+      throw Exception(
+        'An unexpected error occurred while loading similar artworks.',
+      );
+    }
+  }
 }

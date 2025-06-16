@@ -384,4 +384,27 @@ class ApiService {
     }
     return [];
   }
+
+  Future<List<Map<String, dynamic>>> fetchSimilarArtworks({
+    required String artworkId,
+    int limit = 10,
+  }) async {
+    final Map<String, String> queryParams = {
+      'artwork_id': artworkId,
+      'limit': limit.toString(),
+    };
+    final dynamic responseData = await get(
+      'art/get_similar_artworks',
+      queryParams: queryParams,
+    );
+    if (responseData is List) {
+      return responseData.cast<Map<String, dynamic>>();
+    }
+    if (kDebugMode) {
+      print(
+        "ApiService fetchSimilarArtworks: Unexpected response format after processing for artwork $artworkId. Data: ${responseData.runtimeType}",
+      );
+    }
+    return [];
+  }
 }

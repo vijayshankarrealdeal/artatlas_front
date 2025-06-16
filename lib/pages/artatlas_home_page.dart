@@ -1,7 +1,8 @@
-// lib/pages/museum_home_page.dart
+// lib/pages/artatlas_home_page.dart
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:hack_front/models/artwork_model.dart';
+import 'package:hack_front/pages/artatlas_collections_page.dart';
 import 'package:hack_front/providers/navigation_provider.dart';
 import 'package:hack_front/repositories/artwork_repository.dart';
 import 'package:hack_front/utils/responsive_util.dart';
@@ -265,45 +266,77 @@ class _ArtatlasHomePageState extends State<ArtatlasHomePage> {
     );
   }
 
-  Widget _buildImageSection(BuildContext context, String imageUrlFromApi) {
+  Widget _buildImageSection(BuildContext context, Artwork artwork) {
     final ThemeData theme = Theme.of(context);
     final isMobile = ResponsiveUtil.isMobile(context);
     const double desiredAspectRatio = 3 / 4;
 
     Widget imageWidget = AspectRatio(
       aspectRatio: desiredAspectRatio,
-      child: CachedNetworkImage(
-        imageUrl: imageUrlFromApi,
-        httpHeaders: {'Referer': 'https://artvee.com/'},
-        fit: BoxFit.cover,
-        errorWidget: (context, error, stackTrace) {
-          return Container(
-            color: theme.colorScheme.surfaceVariant,
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.broken_image,
-                    color: theme.colorScheme.onSurfaceVariant.withAlpha(
-                      (0.7 * 255).round(),
-                    ),
-                    size: 40,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Image failed to load',
-                    style: TextStyle(
-                      color: theme.colorScheme.onSurfaceVariant.withAlpha(
-                        (0.7 * 255).round(),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          CachedNetworkImage(
+            imageUrl: artwork.imageUrl!,
+            httpHeaders: {'Referer': 'https://artvee.com/'},
+            fit: BoxFit.cover,
+            errorWidget: (context, error, stackTrace) {
+              return Container(
+                color: theme.colorScheme.surfaceVariant,
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.broken_image,
+                        color: theme.colorScheme.onSurfaceVariant.withAlpha(
+                          (0.7 * 255).round(),
+                        ),
+                        size: 40,
                       ),
-                    ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Image failed to load',
+                        style: TextStyle(
+                          color: theme.colorScheme.onSurfaceVariant.withAlpha(
+                            (0.7 * 255).round(),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
+              );
+            },
+          ),
+          Positioned(
+            bottom: 12,
+            right: 12,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (_) =>
+                      SimilarArtworksDialog(artworkId: artwork.mongoId!),
+                );
+              },
+              icon: const Icon(Icons.more_horiz, size: 18),
+              label: const Text('Find Similar'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.black.withOpacity(0.6),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
+                textStyle: const TextStyle(fontSize: 14),
               ),
             ),
-          );
-        },
+          ),
+        ],
       ),
     );
 
@@ -436,10 +469,7 @@ class _ArtatlasHomePageState extends State<ArtatlasHomePage> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Expanded(
-          flex: 6,
-          child: _buildImageSection(context, artwork.imageUrl!),
-        ),
+        Expanded(flex: 6, child: _buildImageSection(context, artwork)),
         SizedBox(width: ResponsiveUtil.isTablet(context) ? 30 : 50),
         Expanded(
           flex: 4,
@@ -464,7 +494,7 @@ class _ArtatlasHomePageState extends State<ArtatlasHomePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildImageSection(context, artwork.imageUrl!),
+          _buildImageSection(context, artwork),
           _buildTextSection(context, titleFontSize, quoteFontSize, artwork),
         ],
       ),
