@@ -163,13 +163,9 @@ class ApiService {
 
   Future<Uint8List> _sendAskAiRequest(http.MultipartRequest request) async {
     try {
-      // Add token to multipart request headers directly
       final String? token = await authProvider.getIdToken();
       if (token != null) {
         request.headers['Authorization'] = 'Bearer $token';
-      } else {
-        if (kDebugMode)
-          print("ApiService: No ID token for AskAI multipart request.");
       }
       request.headers['accept'] =
           'application/octet-stream'; // Backend expects this for response

@@ -37,30 +37,37 @@ class ArtworkRepository {
         final Map<String, String> filters = {};
         if (sortBy != null &&
             sortBy != 'Sort: By Relevance' &&
-            !sortBy.contains(': All'))
+            !sortBy.contains(': All')) {
           filters['sort'] = sortBy
               .split(': ')
               .last
               .toLowerCase()
               .replaceAll(' ', '_');
+        }
         if (dateRange != null &&
             dateRange != 'Date: All' &&
-            !dateRange.contains(': All'))
+            !dateRange.contains(': All')) {
           filters['date'] = dateRange
               .split(': ')
               .last
               .toLowerCase()
               .replaceAll(' ', '_');
+        }
         if (classification != null &&
             classification != 'Classifications: All' &&
-            !classification.contains(': All'))
+            !classification.contains(': All')) {
           filters['classification'] = classification;
+        }
         if (artist != null &&
             artist != 'Artists: All' &&
-            !artist.contains(': All'))
+            !artist.contains(': All')) {
           filters['artist'] = artist;
-        if (style != null && style != 'Styles: All' && !style.contains(': All'))
+        }
+        if (style != null &&
+            style != 'Styles: All' &&
+            !style.contains(': All')) {
           filters['style'] = style;
+        }
 
         if (kDebugMode) {
           print(
@@ -76,12 +83,8 @@ class ArtworkRepository {
 
       return artworkDataList.map((data) => Artwork.fromJson(data)).toList();
     } on ApiException catch (e) {
-      print("ArtworkRepository Error fetching artworks/searching: $e");
       throw Exception('Failed to load artworks: ${e.message}');
     } catch (e) {
-      print(
-        "ArtworkRepository Unexpected Error fetching artworks/searching: $e",
-      );
       throw Exception('An unexpected error occurred while loading artworks.');
     }
   }
@@ -131,10 +134,8 @@ class ArtworkRepository {
           .map((data) => GalleryModel.fromJson(data))
           .toList();
     } on ApiException catch (e) {
-      print("ArtworkRepository Error fetching galleries: $e");
       throw Exception('Failed to load galleries: ${e.message}');
     } catch (e) {
-      print("ArtworkRepository Unexpected Error fetching galleries: $e");
       throw Exception('An unexpected error occurred while loading galleries.');
     }
   }
@@ -160,14 +161,8 @@ class ArtworkRepository {
       // and uses '_id' from the artwork data as a fallback for the Artwork's 'id' field.
       return artworkDataList.map((data) => Artwork.fromJson(data)).toList();
     } on ApiException catch (e) {
-      print(
-        "ArtworkRepository Error fetching artworks for gallery $galleryId: $e",
-      );
       throw Exception('Failed to load artworks for gallery: ${e.message}');
     } catch (e) {
-      print(
-        "ArtworkRepository Unexpected Error fetching artworks for gallery $galleryId: $e",
-      );
       throw Exception(
         'An unexpected error occurred while loading artworks for gallery.',
       );

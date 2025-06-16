@@ -26,7 +26,7 @@ class CollectionsProvider with ChangeNotifier {
   String? _selectedStyle;
   String? get selectedStyle => _selectedStyle;
 
-  List<Map<String, String?>> _activeFilterChips = [];
+  final List<Map<String, String?>> _activeFilterChips = [];
   List<Map<String, String?>> get activeFilterChips => _activeFilterChips;
 
   // --- Filter Options (Ensure these are populated with meaningful defaults or loaded) ---
@@ -172,10 +172,11 @@ class CollectionsProvider with ChangeNotifier {
       _artworks = [];
     }
 
-    if (isNewSearchOrFilter)
+    if (isNewSearchOrFilter) {
       _isLoading = false;
-    else
+    } else {
       _isLoadingMore = false;
+    }
 
     _updateActiveFilterChips();
     notifyListeners(); // Notify listeners again after data is fetched and states are updated
@@ -195,11 +196,8 @@ class CollectionsProvider with ChangeNotifier {
       final newQuery = query.trim().toLowerCase();
       if (_searchQuery != newQuery) {
         _searchQuery = newQuery;
-        if (kDebugMode)
-          print("CollectionsProvider: Debounced search for '$_searchQuery'");
         fetchArtworks(isNewSearchOrFilter: true);
       } else if (newQuery.isEmpty && _searchQuery.isNotEmpty) {
-        // Handle case where search is cleared from a non-empty state
         _searchQuery = '';
         fetchArtworks(isNewSearchOrFilter: true);
       }

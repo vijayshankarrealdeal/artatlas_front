@@ -78,10 +78,6 @@ class GalleryProvider with ChangeNotifier {
       }
     } catch (e) {
       _galleriesErrorMessage = e.toString();
-      if (kDebugMode)
-        print(
-          "GalleryProvider: Error fetching galleries: $_galleriesErrorMessage",
-        );
     }
     _isLoadingGalleries = false;
     notifyListeners();
@@ -125,10 +121,6 @@ class GalleryProvider with ChangeNotifier {
       }
     } catch (e) {
       _galleryArtworksErrorMessage = e.toString();
-      if (kDebugMode)
-        print(
-          "GalleryProvider: Error fetching artworks for gallery $_selectedGalleryIdInternal: $e",
-        );
     }
     _isLoadingGalleryArtworks = false;
     notifyListeners();
@@ -137,8 +129,9 @@ class GalleryProvider with ChangeNotifier {
   Future<void> loadMoreGalleryArtworks() async {
     if (_isLoadingGalleryArtworks ||
         !_hasMoreGalleryArtworks ||
-        _selectedGalleryIdInternal == null)
+        _selectedGalleryIdInternal == null) {
       return;
+    }
 
     _isLoadingGalleryArtworks = true;
     _galleryArtworksErrorMessage = null;

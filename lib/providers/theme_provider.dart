@@ -72,8 +72,6 @@ class ThemeProvider with ChangeNotifier {
         _themeMode = ThemeMode.light; // Default if no preference is saved yet
       }
     } catch (e) {
-      // Handle potential errors during SharedPreferences access, e.g., log them
-      print("Error loading theme preference: $e");
       _themeMode = ThemeMode.light; // Fallback to a default
     }
     notifyListeners(); // Notify listeners after loading
@@ -94,7 +92,6 @@ class ThemeProvider with ChangeNotifier {
       await prefs.setString(_themePrefKey, valueToSave);
     } catch (e) {
       // Handle potential errors during SharedPreferences access
-      print("Error saving theme preference: $e");
     }
   }
 }
