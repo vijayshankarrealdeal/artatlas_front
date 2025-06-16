@@ -91,10 +91,8 @@ class ArtworkRepository {
       final Map<String, dynamic> data = await _apiService.fetchPictureOfTheDay(
         artworkId,
       );
-      print(" $data");
       return Artwork.fromJson(data);
     } on ApiException catch (e) {
-      print("ArtworkRepository PoTD Error: $e");
       return Artwork(
         id: 'fallback_potd_api_error',
         artworkTitle: 'Picture of the Day (Network Error)',
@@ -105,7 +103,6 @@ class ArtworkRepository {
         category: 'Could not connect: ${e.message}',
       );
     } catch (e) {
-      print("ArtworkRepository PoTD Unexpected Error: $e");
       return Artwork(
         id: 'fallback_potd_unexpected_error',
         artworkTitle: 'Picture of the Day (Loading Error)',
