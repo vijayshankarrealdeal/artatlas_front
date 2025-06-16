@@ -1037,7 +1037,7 @@ class _ArtatlasCollectionsPageState extends State<ArtatlasCollectionsPage> {
                             showDialog(
                               context: context,
                               builder: (_) =>
-                                  SimilarArtworksDialog(artworkId: artwork.id),
+                                  SimilarArtworksDialog(artworkId: artwork.mongoId!),
                             );
                           },
                           icon: const Icon(
