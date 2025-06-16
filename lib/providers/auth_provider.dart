@@ -14,6 +14,7 @@ enum AuthStatus {
 class AuthProvider with ChangeNotifier {
   final AuthService _authService;
   User? _user;
+  String? token;
   AuthStatus _status = AuthStatus.uninitialized;
   String? _errorMessage;
   StreamSubscription<User?>? _authStateSubscription;
@@ -46,6 +47,7 @@ class AuthProvider with ChangeNotifier {
       _status = AuthStatus.unauthenticated;
     } else {
       _user = firebaseUser;
+      token = await firebaseUser.getIdToken();
       _status = AuthStatus.authenticated;
     }
     _errorMessage = null; // Clear error on auth state change
