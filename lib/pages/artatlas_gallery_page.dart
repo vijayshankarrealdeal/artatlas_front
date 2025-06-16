@@ -480,7 +480,7 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
             CircularProgressIndicator(
               valueColor: AlwaysStoppedAnimation<Color>(placeholderTextColor),
             ),
-            SizedBox(height: 10),
+            const SizedBox(height: 10),
             Text(
               "Loading galleries...",
               style: TextStyle(color: placeholderTextColor),
@@ -514,7 +514,7 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
             CircularProgressIndicator(
               valueColor: AlwaysStoppedAnimation<Color>(placeholderTextColor),
             ),
-            SizedBox(height: 10),
+            const SizedBox(height: 10),
             Text(
               "Loading artworks...",
               style: TextStyle(color: placeholderTextColor),
@@ -546,7 +546,7 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
                     size: 60,
                     color: placeholderTextColor,
                   ),
-                  SizedBox(height: 8),
+                  const SizedBox(height: 8),
                   Text(
                     "Image not available",
                     style: TextStyle(color: placeholderTextColor),
@@ -567,7 +567,7 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
                 size: 60,
                 color: placeholderTextColor,
               ),
-              SizedBox(height: 8),
+              const SizedBox(height: 8),
               Text(
                 "No image for this artwork",
                 style: TextStyle(color: placeholderTextColor),
@@ -605,7 +605,7 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
             CircularProgressIndicator(
               valueColor: AlwaysStoppedAnimation<Color>(placeholderTextColor),
             ),
-            SizedBox(height: 10),
+            const SizedBox(height: 10),
             Text(
               'Preparing content...',
               style: TextStyle(color: placeholderTextColor),
@@ -616,24 +616,43 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
     }
 
     if (shouldWrapInArtworkBox) {
-      return WoodenFrameBox(
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(context).size.height * 0.5,
-          ),
-          decoration: BoxDecoration(
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.4),
-                blurRadius: 15,
-                offset: const Offset(5, 5),
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          WoodenFrameBox(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.5,
               ),
-            ],
+              decoration: BoxDecoration(
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.4),
+                    blurRadius: 15,
+                    offset: const Offset(5, 5),
+                  ),
+                ],
+              ),
+              child: displayContent,
+            ),
           ),
-          child: displayContent,
-        ),
+          if (provider.selectedArtwork != null) ...[
+            const SizedBox(height: 16),
+            Text(
+              provider.selectedArtwork!.artworkTitle ?? 'Untitled Artwork',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              provider.selectedArtwork!.artistName ?? 'Unknown Artist',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w400),
+            ),
+          ],
+        ],
       );
     } else {
       return displayContent;
@@ -672,10 +691,12 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
 
     return Center(
       child: Container(
-        height: 110,
+        height:
+            MediaQuery.of(context).size.height *
+            (ResponsiveUtil.isMobile(context) ? 0.06 : 0.08),
         width:
             MediaQuery.of(context).size.width *
-            (ResponsiveUtil.isMobile(context) ? 0.8 : 0.5),
+            (ResponsiveUtil.isMobile(context) ? 0.6 : 0.5),
         margin: const EdgeInsets.only(top: 15),
         child: ListView.builder(
           controller: _galleryArtworksScrollController,
@@ -1059,25 +1080,27 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
           child: Column(
             children: [
               Expanded(
-                flex: galleryProvider.selectedArtwork != null ? 3 : 1,
-                child: Center(
-                  child: Padding(
-                    padding: EdgeInsets.only(
-                      left: isMobile ? screenWidth * 0.05 : screenWidth * 0.28,
-                      right: isMobile ? screenWidth * 0.05 : screenWidth * 0.28,
-                      top: isMobile
-                          ? kToolbarHeight * 0.5
-                          : kToolbarHeight * 0.3,
-                      bottom: isMobile
-                          ? kToolbarHeight * 0.2
-                          : kToolbarHeight * 0.1,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Padding(
+                      padding: EdgeInsets.only(
+                        left: isMobile
+                            ? screenWidth * 0.05
+                            : screenWidth * 0.28,
+                        right: isMobile
+                            ? screenWidth * 0.05
+                            : screenWidth * 0.28,
+                        bottom: 20.0,
+                      ),
+                      child: _buildMainArtworkDisplay(context, galleryProvider),
                     ),
-                    child: _buildMainArtworkDisplay(context, galleryProvider),
-                  ),
+                  ],
                 ),
               ),
-              _buildGalleryArtworksList(context, galleryProvider),
-              SizedBox(height: isMobile ? 70 : 80),
+              if (galleryProvider.selectedArtwork != null)
+                _buildGalleryArtworksList(context, galleryProvider),
+              const SizedBox(height: 85),
             ],
           ),
         ),
@@ -1175,7 +1198,7 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
                                   await artworkRepository.getPictureOfTheDay(
                                     idToFetch,
                                   );
-                                
+
                               if (mounted) {
                                 if (!artworkWithDetails.id.contains(
                                   "fallback_potd_api_error",
@@ -1423,8 +1446,8 @@ class _ArtatlasGalleryPageState extends State<ArtatlasGalleryPage>
                   return CustomPaint(
                     painter: GradientBorderPainter(
                       gradient: gradient,
-                      strokeWidth: 4,
-                      blurSigma: 8,
+                      strokeWidth: 20,
+                      blurSigma: 30,
                       borderRadius: 0,
                     ),
                   );
