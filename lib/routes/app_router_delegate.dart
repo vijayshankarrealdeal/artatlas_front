@@ -118,7 +118,6 @@ class AppRouterDelegate extends RouterDelegate<AppRoutePath>
         ),
       );
     } else {
-      print(authProvider.token);
       Widget currentPageWidget;
       switch (navigationProvider.selectedIndex) {
         case 0:

@@ -1,14 +1,10 @@
 // lib/services/api_service.dart
 import 'dart:convert';
 import 'dart:typed_data';
-import 'package:hack_front/models/artwork_model.dart';
+import 'package:hack_front/models/artwork_model.dart'; // Assuming you want to keep this for askAi methods
+import 'package:hack_front/providers/auth_provider.dart'; // For token access
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart' show kDebugMode;
-// Import your ArtworkData model if you created one
-// import 'package:hack_front/models/artwork_data_model.dart'; // Or wherever it is
-
-// Assuming ArtworkData is simple enough to be passed as Map<String, dynamic>
-// Otherwise, create the model as shown above and import it.
 
 class ApiException implements Exception {
   final String message;
@@ -23,43 +19,34 @@ class ApiException implements Exception {
 
 class ApiService {
   static String baseUrl = "https://artatlas-995532374345.us-central1.run.app";
+  final AuthProvider authProvider;
+  ApiService({required this.authProvider});
 
-  Future<dynamic> get(
-    String endpoint, {
-    Map<String, String>? queryParams,
-  }) async {
-    final Uri url = Uri.parse(
-      '$baseUrl/$endpoint',
-    ).replace(queryParameters: queryParams);
-    if (kDebugMode) {
-      print('ApiService GET: $url');
-    }
-    try {
-      final response = await http.get(
-        url,
-        headers: {'accept': 'application/json'},
-      );
-      return _processResponse(response);
-    } catch (e) {
+  Future<Map<String, String>> _getHeaders([
+    bool forceTokenRefresh = false,
+  ]) async {
+    final Map<String, String> headers = {
+      'accept': 'application/json',
+      // 'Content-Type': 'application/json', // Set by http.MultipartRequest or http.post for body
+    };
+    final String? token = await authProvider.getIdToken(forceTokenRefresh);
+    if (token != null) {
+      headers['Authorization'] = 'Bearer $token';
+    } else {
       if (kDebugMode) {
-        print('ApiService GET Error for $url: $e');
+        print("ApiService: No ID token available for request header.");
       }
-      if (e.toString().contains('Connection refused') ||
-          e.toString().contains('SocketException') ||
-          e.toString().contains('Failed host lookup')) {
-        throw ApiException(
-          'Failed to connect to the server. Is it running at $baseUrl and accessible?',
-        );
-      }
-      throw ApiException('Network error while fetching $endpoint: $e');
     }
+    return headers;
   }
 
+  // Centralized response processing from your version
   dynamic _processResponse(http.Response response) {
     if (kDebugMode) {
       print(
         'ApiService Response Status: ${response.statusCode} for ${response.request?.url}',
       );
+      // if (response.statusCode >= 400) print('ApiService Error Body: ${response.body}');
     }
     switch (response.statusCode) {
       case 200:
@@ -81,13 +68,14 @@ class ApiService {
             );
           }
         }
-        return response.bodyBytes; // For non-JSON (e.g. audio bytes)
+        return response
+            .bodyBytes; // For non-JSON (e.g. audio bytes from askAi or proxied image)
       case 400:
         throw ApiException(
           'Bad request: ${response.body}',
           statusCode: response.statusCode,
         );
-      case 401:
+      case 401: // Handled by _handle401AndRetry for GET/DELETE, but keep for others
       case 403:
         throw ApiException(
           'Unauthorized or Forbidden: ${response.body}',
@@ -106,12 +94,153 @@ class ApiService {
     }
   }
 
-  // Updated methods to accept artworkData
+  Future<dynamic> _handle401AndRetry(
+    Future<http.Response> Function(Map<String, String> headers) requestExecutor,
+  ) async {
+    var headers = await _getHeaders();
+    var response = await requestExecutor(headers);
+
+    if (response.statusCode == 401) {
+      if (kDebugMode) {
+        print(
+          "ApiService: Received 401 Unauthorized. Attempting token refresh.",
+        );
+      }
+      final String? newToken = await authProvider.getIdToken(
+        true,
+      ); // Force refresh
+      if (newToken != null) {
+        headers = await _getHeaders(); // Get headers with the new token
+        if (kDebugMode) {
+          print("ApiService: Token refreshed. Retrying original request.");
+        }
+        response = await requestExecutor(headers); // Retry with new headers
+        return _processResponse(
+          response,
+        ); // Process potentially successful retried response
+      } else {
+        // Token refresh failed or no token, sign out (AuthProvider handles notifyListeners)
+        await authProvider.signOut();
+        throw ApiException(
+          "Session expired. Please log in again.",
+          statusCode: 401,
+        );
+      }
+    }
+    return _processResponse(response);
+  }
+
+  Future<dynamic> get(
+    String endpoint, {
+    Map<String, String>? queryParams,
+  }) async {
+    final Uri url = Uri.parse(
+      '$baseUrl/$endpoint',
+    ).replace(queryParameters: queryParams);
+    if (kDebugMode) {
+      print('ApiService GET: $url');
+    }
+
+    try {
+      return await _handle401AndRetry((headers) async {
+        return http.get(url, headers: headers);
+      });
+    } catch (e) {
+      if (kDebugMode) {
+        print('ApiService GET Error for $url: $e');
+      }
+      if (e is ApiException) rethrow; // Already an ApiException
+      if (e.toString().contains('Connection refused') ||
+          e.toString().contains('SocketException') ||
+          e.toString().contains('Failed host lookup')) {
+        throw ApiException(
+          'Failed to connect to the server. Is it running at $baseUrl and accessible?',
+        );
+      }
+      throw ApiException('Network error while fetching $endpoint: $e');
+    }
+  }
+
+  Future<Uint8List> _sendAskAiRequest(http.MultipartRequest request) async {
+    try {
+      // Add token to multipart request headers directly
+      final String? token = await authProvider.getIdToken();
+      if (token != null) {
+        request.headers['Authorization'] = 'Bearer $token';
+      } else {
+        if (kDebugMode)
+          print("ApiService: No ID token for AskAI multipart request.");
+      }
+      request.headers['accept'] =
+          'application/octet-stream'; // Backend expects this for response
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (kDebugMode) {
+        print(
+          'ApiService askAi Multipart Response Status: ${response.statusCode}',
+        );
+        if (response.statusCode != 200) {
+          print('ApiService askAi Multipart Error Body: ${response.body}');
+        }
+      }
+
+      // Specific 401 handling for multipart - might be complex to retry transparently
+      if (response.statusCode == 401) {
+        final String? newToken = await authProvider.getIdToken(true);
+        if (newToken != null) {
+          // You might want to update request.headers['Authorization'] = 'Bearer $newToken';
+          // and then re-send 'request' IF http.MultipartRequest can be resent.
+          // Often, streams can only be read once. So, a higher-level retry is safer.
+          throw ApiException(
+            "Token refreshed. Please try 'Ask AI' again.",
+            statusCode: 401,
+          );
+        } else {
+          await authProvider.signOut();
+          throw ApiException(
+            "Session expired. Please log in again.",
+            statusCode: 401,
+          );
+        }
+      }
+
+      if (response.statusCode == 200) {
+        return response.bodyBytes;
+      } else {
+        // Use _processResponse for consistent error throwing from multipart as well
+        // This might not be ideal if _processResponse expects JSON errors and multipart returns different error structure
+        // For now, let's keep your specific ApiException for multipart errors.
+        throw ApiException(
+          'Failed to get AI response: ${response.reasonPhrase} (Status: ${response.statusCode}), Body: ${response.body}',
+          statusCode: response.statusCode,
+        );
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('ApiService askAi Exception: $e');
+      }
+      if (e is ApiException) rethrow;
+      if (e.toString().contains('Connection refused') ||
+          e.toString().contains('SocketException') ||
+          e.toString().contains('Failed host lookup')) {
+        throw ApiException(
+          'Failed to connect to the server for Ask AI. Is it running at $baseUrl and accessible?',
+        );
+      }
+      throw ApiException('Network error during AI audio request: $e');
+    }
+  }
+
+  // Using your updated methods with Artwork model directly
   Future<Uint8List> askAiWithAudioFile({
     required String filePath,
-    required Artwork artwork, // Use Map or your ArtworkData model
+    required Artwork artwork,
   }) async {
-    final url = Uri.parse('$baseUrl/art/askai');
+    final url = Uri.parse(
+      '$baseUrl/art/askai',
+    ); // Not used directly, request object builds it
     if (kDebugMode) {
       print(
         'ApiService POST (askAiWithAudioFile): $url with file $filePath and data ${artwork.toJson()}',
@@ -121,8 +250,6 @@ class ApiService {
     request.files.add(
       await http.MultipartFile.fromPath('audio_file', filePath),
     );
-    // Add artwork_data as a JSON string field
-    // The backend FastAPI will parse this string field back into the ArtworkData Pydantic model.
     request.fields['artwork_data'] = json.encode(artwork.toJson());
     return _sendAskAiRequest(request);
   }
@@ -130,9 +257,9 @@ class ApiService {
   Future<Uint8List> askAiWithAudioBytes({
     required Uint8List audioBytes,
     required String filename,
-    required Artwork artwork, // Use Map or your ArtworkData model
+    required Artwork artwork,
   }) async {
-    final url = Uri.parse('$baseUrl/art/askai');
+    final url = Uri.parse('$baseUrl/art/askai'); // Not used directly
     if (kDebugMode) {
       print(
         'ApiService POST (askAiWithAudioBytes): $url with bytes (filename: $filename) and data ${artwork.toJson()}',
@@ -147,64 +274,16 @@ class ApiService {
       ),
     );
     request.fields['artwork_data'] = json.encode(artwork.toJson());
-
     return _sendAskAiRequest(request);
   }
 
-  Future<Uint8List> _sendAskAiRequest(http.MultipartRequest request) async {
-    try {
-      final streamedResponse = await request.send();
-      final response = await http.Response.fromStream(streamedResponse);
-
-      if (kDebugMode) {
-        print('ApiService askAi Response Status: ${response.statusCode}');
-        if (response.statusCode != 200) {
-          print('ApiService askAi Error Body: ${response.body}');
-        }
-      }
-
-      if (response.statusCode == 200) {
-        return response.bodyBytes;
-      } else {
-        throw ApiException(
-          'Failed to get AI response: ${response.reasonPhrase} (Status: ${response.statusCode}), Body: ${response.body}',
-          statusCode: response.statusCode,
-        );
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print('ApiService askAi Exception: $e');
-      }
-      if (e.toString().contains('Connection refused') ||
-          e.toString().contains('SocketException') ||
-          e.toString().contains('Failed host lookup')) {
-        throw ApiException(
-          'Failed to connect to the server for Ask AI. Is it running at $baseUrl and accessible?',
-        );
-      }
-      if (e is ApiException) {
-        rethrow;
-      }
-      throw ApiException('Network error during AI audio request: $e');
-    }
-  }
-
+  // Standard GET methods now use the token-aware `get()` method
   Future<Map<String, dynamic>> fetchPictureOfTheDay(String? artworkId) async {
     final String endpoint = artworkId != null && artworkId.isNotEmpty
         ? 'art/get_picture_details/?id=$artworkId'
         : 'art/get_picture_details';
-    final dynamic responseData = await get(endpoint);
-    if (responseData is Map<String, dynamic>) {
-      return responseData;
-    } else if (responseData is Uint8List) {
-      try {
-        final decodedBody = utf8.decode(responseData);
-        return json.decode(decodedBody) as Map<String, dynamic>;
-      } catch (e) {
-        throw ApiException("Failed to parse picture of the day response: $e");
-      }
-    }
-    throw ApiException("Unexpected response type for picture of the day.");
+    // `get` method will handle headers and potential 401 retry
+    return await get(endpoint) as Map<String, dynamic>;
   }
 
   Future<List<Map<String, dynamic>>> fetchArtworksFromCollections({
@@ -217,32 +296,20 @@ class ApiService {
       'skip': skip.toString(),
       ...?filters,
     };
-
     final dynamic responseData = await get(
       'art/collections',
       queryParams: queryParams,
     );
-
     if (responseData is List) {
       return responseData.cast<Map<String, dynamic>>();
-    } else if (responseData is Uint8List) {
-      try {
-        final decodedBody = utf8.decode(responseData);
-        final jsonList = json.decode(decodedBody) as List;
-        return jsonList.cast<Map<String, dynamic>>();
-      } catch (e) {
-        if (kDebugMode) {
-          print("Error decoding collections response: $e. Body: ");
-        }
-        return [];
-      }
     }
+    // Removed Uint8List check here as GET should already be processed by _processResponse
     if (kDebugMode) {
       print(
-        "ApiService fetchArtworksFromCollections: Unexpected response format. Data: ${responseData.runtimeType}",
+        "ApiService fetchArtworksFromCollections: Unexpected response format after processing. Data: ${responseData.runtimeType}",
       );
     }
-    return [];
+    return []; // Should ideally not happen if _processResponse works
   }
 
   Future<List<Map<String, dynamic>>> searchArtworks({
@@ -259,42 +326,19 @@ class ApiService {
       'art/search',
       queryParams: queryParams,
     );
-
     if (responseData is List) {
       return responseData.cast<Map<String, dynamic>>();
-    } else if (responseData is Uint8List) {
-      try {
-        final decodedBody = utf8.decode(responseData);
-        final jsonList = json.decode(decodedBody) as List;
-        return jsonList.cast<Map<String, dynamic>>();
-      } catch (e) {
-        if (kDebugMode) {
-          print("Error decoding search response: $e. Body:");
-        }
-        return [];
-      }
     }
     if (kDebugMode) {
       print(
-        "ApiService searchArtworks: Unexpected response format. Data: ${responseData.runtimeType}",
+        "ApiService searchArtworks: Unexpected response format after processing. Data: ${responseData.runtimeType}",
       );
     }
     return [];
   }
 
   Future<Map<String, dynamic>> fetchGalleryInfo(String galleryId) async {
-    final dynamic responseData = await get('art/galleries/$galleryId/info');
-    if (responseData is Map<String, dynamic>) {
-      return responseData;
-    } else if (responseData is Uint8List) {
-      try {
-        final decodedBody = utf8.decode(responseData);
-        return json.decode(decodedBody) as Map<String, dynamic>;
-      } catch (e) {
-        throw ApiException("Failed to parse gallery info: $e");
-      }
-    }
-    throw ApiException("Unexpected response type for gallery info.");
+    return await get('art/galleries/$galleryId/info') as Map<String, dynamic>;
   }
 
   Future<List<Map<String, dynamic>>> fetchGalleries({
@@ -309,24 +353,12 @@ class ApiService {
       'art/galleries',
       queryParams: queryParams,
     );
-
     if (responseData is List) {
       return responseData.cast<Map<String, dynamic>>();
-    } else if (responseData is Uint8List) {
-      try {
-        final decodedBody = utf8.decode(responseData);
-        final jsonList = json.decode(decodedBody) as List;
-        return jsonList.cast<Map<String, dynamic>>();
-      } catch (e) {
-        if (kDebugMode) {
-          print("Error decoding galleries response: $e. Body: ");
-        }
-        return [];
-      }
     }
     if (kDebugMode) {
       print(
-        "ApiService fetchGalleries: Unexpected response format. Data: ${responseData.runtimeType}",
+        "ApiService fetchGalleries: Unexpected response format after processing. Data: ${responseData.runtimeType}",
       );
     }
     return [];
@@ -346,24 +378,12 @@ class ApiService {
       'art/artworks_by_gallery',
       queryParams: queryParams,
     );
-
     if (responseData is List) {
       return responseData.cast<Map<String, dynamic>>();
-    } else if (responseData is Uint8List) {
-      try {
-        final decodedBody = utf8.decode(responseData);
-        final jsonList = json.decode(decodedBody) as List;
-        return jsonList.cast<Map<String, dynamic>>();
-      } catch (e) {
-        if (kDebugMode) {
-          print("Error decoding artworks by gallery response: $e. Body: ");
-        }
-        return [];
-      }
     }
     if (kDebugMode) {
       print(
-        "ApiService fetchArtworksByGalleryId: Unexpected response format for gallery $galleryId. Data: ${responseData.runtimeType}",
+        "ApiService fetchArtworksByGalleryId: Unexpected response format after processing for gallery $galleryId. Data: ${responseData.runtimeType}",
       );
     }
     return [];
