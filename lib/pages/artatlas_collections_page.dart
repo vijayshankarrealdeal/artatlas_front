@@ -8,7 +8,6 @@ import 'package:hack_front/providers/navigation_provider.dart';
 import 'package:hack_front/providers/theme_provider.dart';
 import 'package:hack_front/repositories/artwork_repository.dart';
 import 'package:hack_front/repositories/user_repository.dart';
-import 'package:hack_front/services/api_service.dart';
 import 'package:hack_front/utils/responsive_util.dart';
 import 'package:provider/provider.dart';
 
