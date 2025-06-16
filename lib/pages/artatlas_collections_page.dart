@@ -512,7 +512,7 @@ class _ArtatlasCollectionsPageState extends State<ArtatlasCollectionsPage> {
                               showDialog(
                                 context: context,
                                 builder: (_) => SimilarArtworksDialog(
-                                  artworkId: artwork.id,
+                                  artworkId: artwork.mongoId!,
                                 ),
                               );
                             },
